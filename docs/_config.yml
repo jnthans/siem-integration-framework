@@ -1,0 +1,25 @@
+title: SIEM Integration Framework
+description: An open-source framework for building secure, reliable SIEM integrations
+theme: jekyll-theme-minimal
+baseurl: /siem-integration-framework
+url: https://jnthans.github.io
+
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+
+exclude:
+  - templates/
+  - llm-references/
+  - examples/
+  - LICENSE
+  - CHANGELOG.md

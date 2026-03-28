@@ -1,0 +1,74 @@
+<!--
+  {VENDOR_DISPLAY} — Wazuh custom rules.
+
+  Rule ID range: {RULE_BASE}–{RULE_END} (reserve your own 100-ID block)
+
+  Install: copy to /var/ossec/etc/rules/
+
+  CUSTOMIZE:
+    - Replace {VENDOR_LOWER} with your vendor name (lowercase)
+    - Replace {NAMESPACE} with your namespace prefix (e.g., op, pp, xdr)
+    - Replace {RULE_BASE} with your starting rule ID
+    - Add rules for each event type your integration emits
+-->
+
+<group name="{VENDOR_LOWER},">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       BASE RULE — matches all events from this integration.
+       Level 0 = no alert. Exists only as a parent for child rules.
+       ═══════════════════════════════════════════════════════════ -->
+
+  <rule id="{RULE_BASE}00" level="0">
+    <decoded_as>{VENDOR_LOWER}</decoded_as>
+    <field name="integration">{VENDOR_LOWER}</field>
+    <description>{VENDOR_DISPLAY} integration event.</description>
+  </rule>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       EVENT TYPE RULES — one per event type.
+       Chain from base rule via <if_sid>.
+       ═══════════════════════════════════════════════════════════ -->
+
+  <!-- Example: Event type A (informational) -->
+  <rule id="{RULE_BASE}01" level="3">
+    <if_sid>{RULE_BASE}00</if_sid>
+    <field name="{NAMESPACE}.event_type">event_type_a</field>
+    <description>{VENDOR_DISPLAY}: event type A — $({NAMESPACE}.summary).</description>
+    <group>{VENDOR_LOWER},event_type_a,</group>
+  </rule>
+
+  <!-- Example: Event type B (authentication) -->
+  <rule id="{RULE_BASE}02" level="3">
+    <if_sid>{RULE_BASE}00</if_sid>
+    <field name="{NAMESPACE}.event_type">signin</field>
+    <description>{VENDOR_DISPLAY}: sign-in by $({NAMESPACE}.actor.email).</description>
+    <group>{VENDOR_LOWER},authentication,</group>
+  </rule>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CONDITIONAL RULES — elevated severity for specific conditions.
+       Chain from event type rules.
+       ═══════════════════════════════════════════════════════════ -->
+
+  <!-- Example: Failed sign-in (elevated severity) -->
+  <rule id="{RULE_BASE}50" level="7">
+    <if_sid>{RULE_BASE}02</if_sid>
+    <field name="{NAMESPACE}.outcome">failure</field>
+    <description>{VENDOR_DISPLAY}: FAILED sign-in by $({NAMESPACE}.actor.email) from $({NAMESPACE}.client.ip).</description>
+    <group>{VENDOR_LOWER},authentication_failure,</group>
+  </rule>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       ERROR / HEALTH RULES — integration monitoring.
+       Always at elevated severity so failures are noticed.
+       ═══════════════════════════════════════════════════════════ -->
+
+  <rule id="{RULE_BASE}90" level="8">
+    <if_sid>{RULE_BASE}00</if_sid>
+    <field name="{NAMESPACE}.event_type">error</field>
+    <description>{VENDOR_DISPLAY} integration error ($({NAMESPACE}.error_source)): $({NAMESPACE}.error_message).</description>
+    <group>{VENDOR_LOWER},integration_error,</group>
+  </rule>
+
+</group>

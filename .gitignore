@@ -1,0 +1,32 @@
+# Credentials
+.secrets
+*.secrets
+tenants.json
+
+# Runtime state
+state.json
+*.state
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jekyll (GitHub Pages)
+docs/_site/
+docs/.jekyll-cache/
+docs/.sass-cache/
