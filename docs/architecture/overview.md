@@ -91,8 +91,8 @@ ossec.conf
 
 The answer depends on the vendor API surface:
 
-- **One module** — the API has a single endpoint or closely related endpoints (e.g., Cortex XDR alerts and incidents share the same auth and pagination pattern, but differ enough to warrant two modules)
-- **Two modules** — the API has distinct surfaces with different auth, pagination, or data models (e.g., Proofpoint has a SIEM API and a People API with different rate limits and schedules)
+- **One module** — the API has a single endpoint or closely related endpoints that share auth, pagination, and error handling (e.g., a vendor whose alert and incident endpoints use the same request format and response structure)
+- **Two modules** — the API has distinct surfaces with different auth, pagination, or data models (e.g., Cortex XDR separates alerts and incidents into different modules because they have different response schemas and query patterns; Proofpoint has a SIEM API and a People API with different rate limits and schedules)
 - **Three+ modules** — rare, but justified when the API surfaces are truly independent
 
 The rule: each module should correspond to one logical API surface that could, in principle, run independently. If two endpoints share request format, pagination, and error handling, they belong in the same module. If they differ on any of those dimensions, separate them.

@@ -8,7 +8,7 @@ These conventions are enforced across all integrations. They exist to ensure con
 
 ### General
 - Python 3.8+ compatibility (oldest version on supported Wazuh hosts)
-- No type hints in function signatures (reduces visual noise for simple scripts, maintains 3.8 compatibility)
+- No type hints in function signatures (reduces visual noise in simple scripts where types are obvious from context)
 - No classes unless the domain genuinely requires objects with state. Prefer functions and module-level constants.
 - No `print()` anywhere — use `emit()` for events (stdout), `log()` for diagnostics (stderr)
 

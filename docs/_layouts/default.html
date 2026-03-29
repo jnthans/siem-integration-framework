@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
+    <meta name="description" content="{{ page.description | default: site.description }}">
+
+    <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+    <style>
+      /* Navigation layout */
+      .page-wrapper {
+        display: flex;
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 1rem;
+        gap: 2rem;
+      }
+
+      .sidebar {
+        flex: 0 0 220px;
+        position: sticky;
+        top: 1rem;
+        align-self: flex-start;
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+      }
+
+      .main-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      /* Site header */
+      .site-header {
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        padding: 0.75rem 1rem;
+      }
+
+      .site-header-inner {
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .site-header a {
+        color: #333;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1.1rem;
+      }
+
+      .site-header a:hover {
+        color: #267CB9;
+      }
+
+      .mobile-nav-toggle {
+        display: none;
+        background: none;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 0.4rem 0.6rem;
+        cursor: pointer;
+        font-size: 1rem;
+        margin-left: auto;
+      }
+
+      /* Sidebar navigation */
+      .site-nav {
+        font-size: 0.9rem;
+      }
+
+      .nav-home {
+        display: block;
+        padding: 0.4rem 0;
+        font-weight: 600;
+        color: #267CB9;
+        text-decoration: none;
+        border-bottom: 1px solid #eee;
+        margin-bottom: 0.5rem;
+      }
+
+      .nav-home:hover {
+        color: #1a5a8a;
+      }
+
+      .nav-section {
+        margin-bottom: 0.25rem;
+      }
+
+      .nav-section summary {
+        cursor: pointer;
+        font-weight: 600;
+        padding: 0.35rem 0;
+        color: #333;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        list-style: none;
+      }
+
+      .nav-section summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .nav-section summary::before {
+        content: "\25B6";
+        display: inline-block;
+        font-size: 0.6rem;
+        margin-right: 0.4rem;
+        transition: transform 0.15s;
+      }
+
+      .nav-section[open] summary::before {
+        transform: rotate(90deg);
+      }
+
+      .nav-section ul {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 0.25rem 0;
+      }
+
+      .nav-section ul li a {
+        display: block;
+        padding: 0.25rem 0 0.25rem 1.2rem;
+        color: #555;
+        text-decoration: none;
+        font-size: 0.85rem;
+        border-left: 2px solid transparent;
+      }
+
+      .nav-section ul li a:hover {
+        color: #267CB9;
+        border-left-color: #267CB9;
+      }
+
+      .nav-section ul li a.active {
+        color: #267CB9;
+        font-weight: 600;
+        border-left-color: #267CB9;
+      }
+
+      /* Previous / Next navigation */
+      .prev-next {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-top: 3rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #ddd;
+      }
+
+      .prev-next-link {
+        display: flex;
+        flex-direction: column;
+        text-decoration: none;
+        padding: 0.75rem 1rem;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        flex: 1;
+        transition: border-color 0.15s;
+      }
+
+      .prev-next-link:hover {
+        border-color: #267CB9;
+      }
+
+      .prev-next-link.next {
+        text-align: right;
+      }
+
+      .prev-next-link.placeholder {
+        border: none;
+      }
+
+      .prev-next-label {
+        font-size: 0.75rem;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .prev-next-title {
+        font-size: 0.95rem;
+        color: #267CB9;
+        font-weight: 500;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .page-wrapper {
+          flex-direction: column;
+        }
+
+        .sidebar {
+          position: static;
+          flex: none;
+          max-height: none;
+        }
+
+        .sidebar.collapsed {
+          display: none;
+        }
+
+        .mobile-nav-toggle {
+          display: inline-block;
+        }
+
+        .prev-next {
+          flex-direction: column;
+        }
+
+        .prev-next-link.next {
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <a href="{{ '/' | relative_url }}">{{ site.title }}</a>
+        <button class="mobile-nav-toggle" aria-label="Toggle navigation" onclick="document.querySelector('.sidebar').classList.toggle('collapsed')">
+          &#9776; Menu
+        </button>
+      </div>
+    </header>
+
+    <div class="page-wrapper">
+      <aside class="sidebar">
+        {% include nav.html %}
+      </aside>
+
+      <main class="main-content">
+        {{ content }}
+        {% include prev-next.html %}
+      </main>
+    </div>
+  </body>
+</html>

@@ -47,7 +47,7 @@ Level 0: Base rule (decoded_as + integration match)
 </rule>
 ```
 
-Level 0 means no alert is generated. This rule exists only as a parent — all subsequent rules use `<if_sid>100800</if_sid>` to chain from it. The `decoded_as` and `integration` field double-match ensures only events from this specific integration trigger the rule tree.
+Level 0 means no alert is generated. This rule exists only as a parent — all subsequent rules use `<if_sid>100800</if_sid>` to chain from it. Two complementary match conditions — the decoder name (`decoded_as`) and the JSON field (`integration`) — ensure only events from this specific integration trigger the rule tree.
 
 ### Event type rules (level 3-7)
 

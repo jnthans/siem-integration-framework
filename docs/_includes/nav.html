@@ -1,0 +1,25 @@
+{% assign current_path = page.url | remove: site.baseurl %}
+<nav class="site-nav" aria-label="Site navigation">
+  <a href="{{ '/' | relative_url }}" class="nav-home">Home</a>
+  {% for section in site.data.navigation.sections %}
+    {% assign section_open = false %}
+    {% for p in section.pages %}
+      {% if p.url == current_path %}
+        {% assign section_open = true %}
+      {% endif %}
+    {% endfor %}
+    <details class="nav-section"{% if section_open %} open{% endif %}>
+      <summary>{{ section.title }}</summary>
+      <ul>
+        {% for p in section.pages %}
+          <li>
+            <a href="{{ p.url | relative_url }}"
+               {% if p.url == current_path %}class="active" aria-current="page"{% endif %}>
+              {{ p.title }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </details>
+  {% endfor %}
+</nav>

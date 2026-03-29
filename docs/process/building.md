@@ -87,8 +87,12 @@ def transform(raw_event):
         "integration": "vendorname",
         "vn": {
             "event_type": determine_type(raw_event),
-            # Map vendor fields — preserve nesting
-            **raw_event
+            # Map vendor fields explicitly — preserve nesting
+            "actor": raw_event.get("actor"),
+            "target": raw_event.get("target"),
+            "action": raw_event.get("action"),
+            "timestamp": raw_event.get("timestamp"),
+            # ... map remaining vendor-specific fields
         }
     }
 ```

@@ -93,7 +93,7 @@ for module_name, fetch_fn in modules:
 **Why**: SIEMs have reserved field names. Wazuh reserves `id`, `type`, `status`, `data`, and many others. If a vendor API returns a field called `type` and we emit it at the top level, it collides with Wazuh's internal `type` field. The namespace eliminates this entire collision class.
 
 **Convention**:
-- 2-3 character prefix derived from the vendor name: `op` (1Password), `pp` (Proofpoint), `xdr` (Cortex XDR)
+- Short prefix (2-4 characters) derived from the vendor name: `op` (1Password), `pp` (Proofpoint), `xdr` (Cortex XDR)
 - All vendor fields nested under this prefix key
 - In Wazuh rules, fields are referenced as `{prefix}.field_name`
 - In OpenSearch, fields appear as `data.{prefix}.field_name`

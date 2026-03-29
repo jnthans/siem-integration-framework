@@ -1,0 +1,71 @@
+sections:
+  - title: Architecture
+    pages:
+      - title: Overview
+        url: /architecture/overview.html
+      - title: Data flow
+        url: /architecture/data-flow.html
+      - title: Design principles
+        url: /architecture/design-principles.html
+
+  - title: Build process
+    pages:
+      - title: "Phase 1: Planning"
+        url: /process/planning.html
+      - title: "Phase 2: Building"
+        url: /process/building.html
+      - title: "Phase 3: Testing"
+        url: /process/testing.html
+      - title: "Phase 4: Deploying"
+        url: /process/deploying.html
+      - title: "Phase 5: Documenting"
+        url: /process/documenting.html
+
+  - title: Guides
+    pages:
+      - title: AI-assisted building
+        url: /guides/ai-prompting.html
+      - title: Adapting to other SIEMs
+        url: /guides/adapting-to-other-siems.html
+      - title: Security checklist
+        url: /guides/security-checklist.html
+
+  - title: Reference
+    pages:
+      - title: Repository structure
+        url: /reference/repo-structure.html
+      - title: Coding conventions
+        url: /reference/coding-conventions.html
+      - title: Rule design
+        url: /reference/rule-design.html
+
+# Flat ordered list for prev/next navigation
+order:
+  - url: /architecture/overview.html
+    title: Overview
+  - url: /architecture/data-flow.html
+    title: Data flow
+  - url: /architecture/design-principles.html
+    title: Design principles
+  - url: /process/planning.html
+    title: "Phase 1: Planning"
+  - url: /process/building.html
+    title: "Phase 2: Building"
+  - url: /process/testing.html
+    title: "Phase 3: Testing"
+  - url: /process/deploying.html
+    title: "Phase 4: Deploying"
+  - url: /process/documenting.html
+    title: "Phase 5: Documenting"
+  - url: /guides/ai-prompting.html
+    title: AI-assisted building
+  - url: /guides/adapting-to-other-siems.html
+    title: Adapting to other SIEMs
+  - url: /guides/security-checklist.html
+    title: Security checklist
+  - url: /reference/repo-structure.html
+    title: Repository structure
+  - url: /reference/coding-conventions.html
+    title: Coding conventions
+  - url: /reference/rule-design.html
+    title: Rule design
