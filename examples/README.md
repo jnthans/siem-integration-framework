@@ -1,6 +1,6 @@
-# Example integrations
+# Production integrations
 
-Production integrations built with this framework:
+These three Wazuh integrations are running in production. The patterns in this repo were extracted from building them.
 
 | Integration | Vendor API | Auth method | Pagination | Event types | Repo |
 |---|---|---|---|---|---|
@@ -8,9 +8,9 @@ Production integrations built with this framework:
 | wazuh-proofpoint | Proofpoint TAP SIEM + People | Basic auth | Time-window (GET) | Messages, clicks, VAP, top clickers | [jnthans/wazuh-proofpoint](https://github.com/jnthans/wazuh-proofpoint) |
 | wazuh-cortex-xdr | Cortex XDR REST API | HMAC (API key + hash) | Offset-based (POST) | Alerts, incidents | [jnthans/wazuh-cortex-xdr](https://github.com/jnthans/wazuh-cortex-xdr) |
 
-## How these examples demonstrate the framework
+## What is the same across all three
 
-Each integration follows the identical architecture:
+Each integration ended up with the identical architecture:
 
 - **Four-layer design**: `run.sh` → `{vendor}.py` → `{vendor}_{module}.py` → `{vendor}_utils.py`
 - **Same repo layout**: `wodle/`, `rules/`, `artifacts/` with identical subdirectory structure
@@ -24,4 +24,4 @@ The only things that differ are the vendor-specific details: API endpoints, auth
 
 ## Adding your integration
 
-Built an integration using this framework? Open a PR to add it to this table.
+Built something similar? Open a PR to add it to this table.

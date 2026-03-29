@@ -1,17 +1,17 @@
 # SIEM Integration Framework
 
-An open-source framework for building secure, reliable, and efficient SIEM integrations.
+Architecture and patterns from three production Wazuh integrations — documented for humans and LLMs.
 
-Built from patterns proven in production across 1Password, Proofpoint TAP, and Cortex XDR integrations for Wazuh SIEM. Designed so humans and AI models alike can build new integrations faster and with fewer mistakes.
+This repo captures what I learned building three production Wazuh wodle integrations (1Password, Proofpoint TAP, Cortex XDR). The architecture was the same each time. The templates, docs, and LLM-ready references here let you apply the same approach to any vendor API.
 
 ---
 
 ## Documentation
 
 ### Architecture
-- [Overview](architecture/overview.md) — The universal integration architecture and its components
+- [Overview](architecture/overview.md) — The integration architecture and its components
 - [Data flow](architecture/data-flow.md) — How events move from vendor API to SIEM dashboard
-- [Design principles](architecture/design-principles.md) — The non-negotiable constraints behind every decision
+- [Design principles](architecture/design-principles.md) — The production lessons behind every decision
 
 ### Build process
 - [Phase 1: Planning](process/planning.md) — API research, event mapping, rule ID reservation
@@ -37,3 +37,4 @@ Built from patterns proven in production across 1Password, Proofpoint TAP, and C
 - [GitHub repo](https://github.com/jnthans/siem-integration-framework) — Templates, LLM references, and source
 - [LLM reference files](https://github.com/jnthans/siem-integration-framework/tree/main/llm-references) — Machine-readable blueprints for AI-assisted development
 - [Templates](https://github.com/jnthans/siem-integration-framework/tree/main/templates) — Scaffold files to copy and customize
+- Production integrations — [wazuh-1password](https://github.com/jnthans/wazuh-1password) · [wazuh-proofpoint](https://github.com/jnthans/wazuh-proofpoint) · [wazuh-cortex-xdr](https://github.com/jnthans/wazuh-cortex-xdr)

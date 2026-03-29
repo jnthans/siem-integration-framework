@@ -1,5 +1,5 @@
 title: SIEM Integration Framework
-description: An open-source framework for building secure, reliable SIEM integrations
+description: Architecture and patterns from production Wazuh integrations — templates and LLM references for building your own
 theme: jekyll-theme-minimal
 baseurl: /siem-integration-framework
 url: https://jnthans.github.io

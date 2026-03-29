@@ -1,25 +1,72 @@
 # SIEM Integration Framework
 
-An open-source framework for building secure, reliable, and efficient SIEM integrations — distilled from production Wazuh wodles monitoring 1Password, Proofpoint TAP, and Cortex XDR.
+Architecture and patterns from three production Wazuh integrations — documented for humans and LLMs.
 
-**Framework site:** [https://jnthans.github.io/siem-integration-framework](https://jnthans.github.io/siem-integration-framework)
-
----
-
-## What this is
-
-This framework captures the repeatable architecture, process, coding conventions, and tooling behind a series of production SIEM integrations. Every integration we built followed the same pattern — this repo codifies that pattern so anyone (human or AI) can replicate it for any vendor API.
-
-The framework is **Wazuh-primary** with guidance on adapting the architecture to Splunk, Microsoft Sentinel, Elastic, and other SIEMs.
+**Documentation site:** [https://jnthans.github.io/siem-integration-framework](https://jnthans.github.io/siem-integration-framework)
 
 ---
 
-## Who this is for
+## What this is (and what it isn't)
 
-- **Security engineers** building integrations for their SIEM deployment
-- **MSSPs/MSPs** needing repeatable integration patterns across client environments
-- **AI models** (Claude, GPT, Copilot, etc.) assisting with integration development — see [`llm-references/`](llm-references/) for machine-readable blueprints
-- **Open-source contributors** looking to extend the pattern to new vendor APIs
+I built three Wazuh wodle integrations — for 1Password, Proofpoint TAP, and Cortex XDR. Each one consumed a different vendor API with different auth, pagination, and event models. Each one ended up with the same architecture: the same four-layer design, the same state management, the same credential chain, the same error handling.
+
+This repo extracts those patterns. It's a documented architecture, a set of copy-and-customize templates, and a collection of LLM-ready reference files that let an AI assistant produce framework-consistent integrations from vendor API docs.
+
+It is **not** a library you install or a product you adopt. It's a pattern reference — here's what worked in production and why.
+
+This is **Wazuh-focused**. The architecture is conceptually portable to any SIEM that ingests structured events, and there's a [guide exploring what that looks like](docs/guides/adapting-to-other-siems.md), but only the Wazuh path has been tested in production.
+
+---
+
+## Production integrations
+
+These three integrations are running in production. The patterns in this repo were extracted from building them.
+
+| Integration | Vendor API | Auth method | Pagination | Event types | Repo |
+|---|---|---|---|---|---|
+| wazuh-1password | 1Password Events API v2 | Bearer token | Cursor-based (POST) | Audit, sign-in, item usage | [jnthans/wazuh-1password](https://github.com/jnthans/wazuh-1password) |
+| wazuh-proofpoint | Proofpoint TAP SIEM + People API | Basic auth | Time-window (GET) | Messages, clicks, VAP, top clickers | [jnthans/wazuh-proofpoint](https://github.com/jnthans/wazuh-proofpoint) |
+| wazuh-cortex-xdr | Cortex XDR REST API | HMAC (API key + hash) | Offset-based (POST) | Alerts, incidents | [jnthans/wazuh-cortex-xdr](https://github.com/jnthans/wazuh-cortex-xdr) |
+
+Each ended up with the identical four-layer architecture, the same CLI interface (`--source`, `--all`, `--lookback`, `--debug`), the same atomic state management, and zero external dependencies. The only things that differ are vendor-specific: endpoints, auth mechanisms, pagination models, and field mappings.
+
+---
+
+## What you can do with this repo
+
+**Build a Wazuh integration** — Copy the [`templates/`](templates/) directory, rename files for your vendor, and fill in the vendor-specific details. The [build process docs](docs/process/) walk through each phase.
+
+```bash
+cp -r templates/ my-wazuh-vendor/
+cd my-wazuh-vendor/
+mv wodle/integration.py wodle/vendorname.py
+mv wodle/integration_module.py wodle/vendorname_events.py
+mv wodle/integration_utils.py wodle/vendorname_utils.py
+```
+
+**Feed it to an LLM** — The [`llm-references/`](llm-references/) directory contains files structured specifically for AI consumption. Attach them to a Claude or GPT session along with your vendor's API docs and prompt it to build the integration. See the next section.
+
+**Study the patterns** — Read the [architecture docs](docs/architecture/) and [design principles](docs/architecture/design-principles.md) to understand the reasoning behind the decisions.
+
+---
+
+## LLM-ready references
+
+This repo includes five files designed to be dropped into an AI assistant's context window. When paired with a vendor's API documentation, they produce integrations that follow the architecture without the human needing to enforce every convention manually.
+
+| File | Purpose |
+|---|---|
+| [`SYSTEM_PROMPT.md`](llm-references/SYSTEM_PROMPT.md) | Sets the AI's role and constraints |
+| [`ARCHITECTURE.md`](llm-references/ARCHITECTURE.md) | Architecture spec it must follow |
+| [`CODING_STANDARDS.md`](llm-references/CODING_STANDARDS.md) | Python style and convention rules |
+| [`CHECKLIST.md`](llm-references/CHECKLIST.md) | Step-by-step build process |
+| [`EXAMPLES.md`](llm-references/EXAMPLES.md) | Real patterns from the three production integrations |
+
+Attach these to your session and prompt:
+
+> "Build a Wazuh integration for [Vendor] using the [API name]. The API uses [auth method] and returns [data format]. Here is the API documentation: [link or paste]."
+
+The [AI prompting guide](docs/guides/ai-prompting.md) covers this workflow in detail.
 
 ---
 
@@ -27,7 +74,7 @@ The framework is **Wazuh-primary** with guidance on adapting the architecture to
 
 ```
 siem-integration-framework/
-├── docs/                          # Framework documentation (GitHub Pages site)
+├── docs/                          # Architecture and process documentation (GitHub Pages site)
 │   ├── architecture/              # System design and data flow
 │   ├── process/                   # Step-by-step build process
 │   ├── guides/                    # AI prompting, security, SIEM adaptation
@@ -42,72 +89,14 @@ siem-integration-framework/
 │   ├── CODING_STANDARDS.md        # Style and convention rules
 │   ├── CHECKLIST.md               # End-to-end build checklist
 │   └── EXAMPLES.md                # Condensed patterns from real integrations
-└── examples/                      # Links to production integrations built with this framework
+└── examples/                      # Links to the three production integrations
 ```
-
----
-
-## Quick start
-
-### 1. Use the templates
-
-Copy the `templates/` directory and rename files for your target vendor:
-
-```bash
-cp -r templates/ my-wazuh-vendor/
-cd my-wazuh-vendor/
-
-# Rename files — replace 'integration' with your vendor name
-mv wodle/integration.py wodle/vendorname.py
-mv wodle/integration_module.py wodle/vendorname_events.py
-mv wodle/integration_utils.py wodle/vendorname_utils.py
-mv rules/integration_rules.xml rules/vendorname_rules.xml
-mv rules/integration_decoder.xml rules/vendorname_decoder.xml
-```
-
-### 2. AI-assisted building
-
-Feed the LLM reference files to your AI assistant:
-
-```
-Attach these files to your AI session:
-  llm-references/SYSTEM_PROMPT.md      # Sets the AI's role and constraints
-  llm-references/ARCHITECTURE.md       # Architecture it must follow
-  llm-references/CODING_STANDARDS.md   # Code style it must use
-  llm-references/CHECKLIST.md          # Step-by-step process to follow
-```
-
-Then prompt:
-
-> "Build a Wazuh integration for [Vendor] using the [API name]. The API uses [auth method] and returns [data format]. Here is the API documentation: [link or paste]."
-
-### 3. Follow the process
-
-The framework documents a five-phase process:
-
-1. **Plan** — Research the vendor API, map event types, reserve rule IDs
-2. **Build** — Implement the wodle following the architecture and coding standards
-3. **Test** — Validate with `--all --debug 1`, verify events in OpenSearch
-4. **Deploy** — Install to the Wazuh manager, configure ossec.conf
-5. **Document** — Write the three standard guides plus README
-
-Each phase is detailed in [`docs/process/`](docs/process/).
-
----
-
-## Production integrations built with this framework
-
-| Integration | Vendor API | Event types | Repo |
-|---|---|---|---|
-| wazuh-1password | 1Password Events API v2 | Audit, sign-in, item usage | [jnthans/wazuh-1password](https://github.com/jnthans/wazuh-1password) |
-| wazuh-proofpoint | Proofpoint TAP SIEM + People API | Messages, clicks, VAP, top clickers | [jnthans/wazuh-proofpoint](https://github.com/jnthans/wazuh-proofpoint) |
-| wazuh-cortex-xdr | Cortex XDR REST API | Alerts, incidents | [jnthans/wazuh-cortex-xdr](https://github.com/jnthans/wazuh-cortex-xdr) |
 
 ---
 
 ## Design principles
 
-These principles emerged from building and operating the integrations above. They are non-negotiable constraints in the framework:
+These principles emerged from building and operating the integrations above. Each one prevented a production incident or eliminated a class of bugs.
 
 1. **Zero external dependencies** — stdlib Python only. No pip installs on the SIEM host.
 2. **Atomic state** — `tempfile` + `os.replace`. A kill -9 mid-write never corrupts state.
@@ -122,10 +111,10 @@ These principles emerged from building and operating the integrations above. The
 
 ## Contributing
 
-This framework improves every time someone builds an integration with it. Contributions welcome:
+Contributions welcome:
 
-- **New integration?** Open a PR to add it to the examples table
-- **Found a gap?** File an issue describing what the framework didn't cover
+- **Built something similar?** Open a PR to add it to the examples table
+- **Found a gap?** File an issue describing what the patterns didn't cover
 - **Better patterns?** PRs to templates, docs, or LLM references are all welcome
 
 ---
