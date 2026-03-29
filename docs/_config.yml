@@ -22,4 +22,3 @@ exclude:
   - llm-references/
   - examples/
   - LICENSE
-  - CHANGELOG.md

@@ -29,7 +29,6 @@ wazuh-{vendor}/
 │   ├── overrides/                    ← (Optional) Docker compose overrides
 │   └── images/                       ← Dashboard screenshots for README
 ├── .gitignore
-├── CHANGELOG.md
 └── README.md
 ```
 
@@ -94,4 +93,4 @@ The two XML files that configure Wazuh's parsing and alerting pipeline. These ar
 Configuration examples, documentation guides, dashboard exports, Docker overrides, screenshots. Organized into subdirectories by purpose. The `artifacts/` directory is a reference library — nothing in it is required for the integration to function.
 
 ### Root — repo-level files
-README, CHANGELOG, .gitignore, LICENSE. These are standard open-source repo files.
+README, .gitignore, LICENSE. These are standard open-source repo files. Use GitHub Releases for version history.
