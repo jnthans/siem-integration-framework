@@ -40,15 +40,18 @@ def fetch_events(cursor, config):
 - Catch specific exceptions, not bare `except:`
 - Every caught exception either emits an error event or re-raises
 - Never silently swallow errors:
+
+**Good** — catch specific exceptions and emit a structured error:
 ```python
-# Good
 except urllib.error.HTTPError as e:
     emit_error("module_name", f"HTTP {e.code}: {e.reason}")
     return cursor  # return unchanged cursor so next run retries
+```
 
-# Bad
+**Bad** — silently ignores all errors:
+```python
 except Exception:
-    pass  # silently ignores ALL errors
+    pass
 ```
 
 ### String formatting
