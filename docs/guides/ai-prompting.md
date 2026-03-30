@@ -164,7 +164,7 @@ Build the domain module to handle this response format.
 - **Attach**: `ARCHITECTURE.md` (data flow context helps debugging)
 
 ### Phase 4: Deploying
-- **Ask the AI to**: Generate ossec.conf stanza, docker-compose overrides, systemd credential configuration
+- **Ask the AI to**: Generate ossec.conf stanza, systemd credential configuration
 - **Provide**: Deployment environment details (bare metal, Docker, Kubernetes)
 - **Attach**: `CHECKLIST.md` (deployment section)
 

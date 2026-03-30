@@ -100,34 +100,6 @@ tail -f /var/ossec/logs/alerts/alerts.json | jq 'select(.rule.groups[] == "vendo
 
 ---
 
-## Docker deployment
-
-For Wazuh running in Docker, volume-mount the wodle directory and add the config:
-
-### docker-compose override
-
-```yaml
-services:
-  wazuh.manager:
-    volumes:
-      - ./wodle:/var/ossec/wodles/vendorname:ro
-      - ./wodle/.secrets:/var/ossec/wodles/vendorname/.secrets:ro
-      - ./rules/vendorname_decoder.xml:/var/ossec/etc/decoders/vendorname_decoder.xml:ro
-      - ./rules/vendorname_rules.xml:/var/ossec/etc/rules/vendorname_rules.xml:ro
-      - vendorname_state:/var/ossec/wodles/vendorname/state
-
-volumes:
-  vendorname_state:
-```
-
-Use a named volume for state to persist across container recreations. The wodle files themselves are mounted read-only.
-
-### ossec.conf injection
-
-Mount a custom ossec.conf or use Wazuh's config overlay mechanism to add the wodle stanza.
-
----
-
 ## Dashboards (optional)
 
 If the integration includes pre-built dashboards:

@@ -26,7 +26,6 @@ wazuh-{vendor}/
 │   │   ├── rules-reference.md       ← Rule catalog, field reference, severity mapping
 │   │   └── troubleshooting.md       ← Test commands, common errors, state reset
 │   ├── objects/                      ← (Optional) Dashboard exports (.ndjson)
-│   ├── overrides/                    ← (Optional) Docker compose overrides
 │   └── images/                       ← Dashboard screenshots for README
 ├── .gitignore
 └── README.md
@@ -90,7 +89,7 @@ Everything the Wazuh manager needs to execute the integration. No documentation,
 The two XML files that configure Wazuh's parsing and alerting pipeline. These are copied to `/var/ossec/etc/decoders/` and `/var/ossec/etc/rules/` during installation.
 
 ### `artifacts/` — everything else
-Configuration examples, documentation guides, dashboard exports, Docker overrides, screenshots. Organized into subdirectories by purpose. The `artifacts/` directory is a reference library — nothing in it is required for the integration to function.
+Configuration examples, documentation guides, dashboard exports, screenshots. Organized into subdirectories by purpose. The `artifacts/` directory is a reference library — nothing in it is required for the integration to function.
 
 ### Root — repo-level files
 README, .gitignore, LICENSE. These are standard open-source repo files. Use GitHub Releases for version history.
