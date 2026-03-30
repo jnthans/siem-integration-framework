@@ -104,7 +104,7 @@ for module_name, fetch_fn in modules:
 
 **Rule**: The integration tracks its position (cursor, timestamp, or offset) and resumes from exactly where it left off. No duplicates, no gaps.
 
-**Why**: Integrations run on a schedule (typically every 5 minutes). If the last run fetched events through cursor X, the next run must start from cursor X — not from "the last hour" or "since midnight." Time-based approaches create duplicates at boundaries and gaps on delays. Cursor-based approaches are exact.
+**Why**: Integrations run on a schedule (typically every 5 minutes). If the last run fetched events through cursor X, the next run must start from cursor X — not from "the last hour" or "since midnight." The key is using the API's own continuation mechanism (cursor, returned timestamp, or offset) rather than inventing arbitrary time windows. Hardcoded windows like "fetch the last hour" create duplicates at boundaries and gaps on delays. Position tracking from the API response is exact.
 
 **Bookmark types by API pattern**:
 - **Cursor/token** (1Password) — the API returns an opaque cursor string. Store it, send it back next time.
