@@ -131,7 +131,7 @@ def http_with_retry(request_fn, max_wait=60):
 
 ## Decoder rules
 
-1. First decoder matches on `<program_name>run.sh</program_name>`
+1. First decoder matches on `<program_name>{vendor}</program_name>` (must match the `<tag>` in ossec.conf)
 2. Child decoder uses `<plugin_decoder>JSON_Decoder</plugin_decoder>`
 3. Decoder name matches the integration name (lowercase)
 

@@ -231,7 +231,7 @@ def load_config(args):
 ### Decoder
 ```xml
 <decoder name="onepassword">
-  <program_name>run.sh</program_name>
+  <program_name>onepassword</program_name>
 </decoder>
 <decoder name="onepassword_json">
   <parent>onepassword</parent>

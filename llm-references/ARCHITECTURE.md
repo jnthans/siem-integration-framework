@@ -144,7 +144,7 @@ $CREDENTIALS_DIRECTORY/{cred_name}  →  .secrets file (KEY=VALUE)  →  $ENV_VA
 
 ```xml
 <decoder name="{vendor}">
-  <program_name>run.sh</program_name>
+  <program_name>{vendor}</program_name>
 </decoder>
 <decoder name="{vendor}_json">
   <parent>{vendor}</parent>

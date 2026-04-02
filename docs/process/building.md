@@ -181,9 +181,12 @@ Key points:
 ## Step 5: Build decoder and rules
 
 ### Decoder (`{vendor}_decoder.xml`)
+
+The decoder's `<program_name>` must match the `<tag>` value from the ossec.conf wodle stanza — Wazuh uses the tag, not the script filename, as the program name.
+
 ```xml
 <decoder name="vendorname">
-  <program_name>run.sh</program_name>
+  <program_name>vendorname</program_name>
 </decoder>
 
 <decoder name="vendorname_json">

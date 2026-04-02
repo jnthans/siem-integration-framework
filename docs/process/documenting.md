@@ -95,7 +95,7 @@ Problem-solution pairs for every issue an operator is likely to encounter. Writt
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| No events in dashboard | Decoder not matching | Verify `program_name` matches `run.sh` path |
+| No events in dashboard | Decoder not matching | Verify `program_name` in decoder matches the `<tag>` value in ossec.conf |
 | `Permission denied` in logs | Wrong file ownership | `chown root:wazuh`, `chmod 640/750` |
 | Events appear but wrong rule | Field name mismatch | Check namespace prefix in rules vs emitted JSON |
 

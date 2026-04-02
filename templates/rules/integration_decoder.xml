@@ -4,13 +4,15 @@
   Matches events from the {VENDOR_LOWER} wodle (identified by program_name)
   and activates Wazuh's built-in JSON decoder to extract all fields.
 
+  The <program_name> must match the <tag> value in the ossec.conf wodle stanza.
+
   Install: copy to /var/ossec/etc/decoders/
 
   CUSTOMIZE: Replace {VENDOR_LOWER} with your vendor name (lowercase).
 -->
 
 <decoder name="{VENDOR_LOWER}">
-  <program_name>run.sh</program_name>
+  <program_name>{VENDOR_LOWER}</program_name>
 </decoder>
 
 <decoder name="{VENDOR_LOWER}_json">

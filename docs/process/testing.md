@@ -158,7 +158,7 @@ If the vendor API has known rate limits:
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| No events in OpenSearch | Decoder not matching | Check `program_name` in decoder matches `run.sh` |
+| No events in OpenSearch | Decoder not matching | Check `program_name` in decoder matches the `<tag>` value in ossec.conf |
 | Events appear but no rule fires | Base rule `decoded_as` mismatch | Verify decoder name matches rule's `decoded_as` |
 | Duplicate events after restart | State not being saved | Check state file path is writable by wazuh user |
 | Python traceback in alerts | Debug output on stdout | Ensure all `log()` calls use stderr |

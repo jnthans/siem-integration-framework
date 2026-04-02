@@ -9,9 +9,9 @@ Wazuh rules are the classification layer — they decide what matters, how much 
 Every integration uses the same two-decoder pattern:
 
 ```xml
-<!-- Match on program name (the run.sh script name in wodle output) -->
+<!-- Match on program name (the <tag> value from the ossec.conf wodle stanza) -->
 <decoder name="vendorname">
-  <program_name>run.sh</program_name>
+  <program_name>vendorname</program_name>
 </decoder>
 
 <!-- Activate JSON decoding for matched events -->
@@ -21,7 +21,7 @@ Every integration uses the same two-decoder pattern:
 </decoder>
 ```
 
-The `program_name` match identifies events from this integration. The child decoder activates Wazuh's built-in JSON parser, which automatically extracts all JSON fields and makes them available as `data.*` in OpenSearch and as direct field references in rules.
+The `program_name` match identifies events from this integration — Wazuh wodle commands use the `<tag>` value from ossec.conf as the program name, so the decoder's `<program_name>` must match the wodle's `<tag>`, not the script filename. The child decoder activates Wazuh's built-in JSON parser, which automatically extracts all JSON fields and makes them available as `data.*` in OpenSearch and as direct field references in rules.
 
 ---
 

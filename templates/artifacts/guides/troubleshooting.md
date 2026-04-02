@@ -24,7 +24,7 @@ grep -i "{VENDOR_LOWER}\|run.sh" /var/ossec/logs/ossec.log | tail -20
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| No events in dashboard | Decoder not matching | Verify `program_name` in decoder matches `run.sh`. Run `wazuh-logtest` with a sample event. |
+| No events in dashboard | Decoder not matching | Verify `program_name` in decoder matches the `<tag>` value in ossec.conf. Run `wazuh-logtest` with a sample event. |
 | Events appear but no rule fires | `decoded_as` mismatch | Ensure decoder `name` matches rule's `decoded_as` value exactly. |
 | `Permission denied` | Wrong file ownership | `chown root:wazuh` and `chmod 750` (scripts) / `chmod 640` (secrets, Python modules). |
 | `No module named {VENDOR}_utils` | Script not executable or wrong working dir | Add `#!/usr/bin/env python3` to all `.py` files. Verify `run.sh` uses `SCRIPT_DIR`. |

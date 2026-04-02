@@ -82,7 +82,7 @@ Step-by-step checklist for building a complete integration. Follow in order.
 - [ ] Notes about file permissions (chmod 640, chown root:wazuh)
 
 ### Step 6: Decoder (`{vendor}_decoder.xml`)
-- [ ] Parent decoder matching `<program_name>run.sh</program_name>`
+- [ ] Parent decoder matching `<program_name>{vendor}</program_name>` (must match the `<tag>` in ossec.conf)
 - [ ] Child decoder with `<plugin_decoder>JSON_Decoder</plugin_decoder>`
 
 ### Step 7: Rules (`{vendor}_rules.xml`)
