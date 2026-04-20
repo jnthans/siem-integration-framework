@@ -8,8 +8,9 @@ This document is designed for LLM context. It specifies the complete architectur
 
 ### Layer 1: Shell wrapper (`run.sh`)
 - Sets environment variables (API URLs, feature flags, debug level)
-- Resolves script directory with `SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"`
-- Execs Python entry point: `exec "$SCRIPT_DIR/{vendor}.py" "$@"`
+- Resolves the Python interpreter: `command -v python3` first, falls back to Wazuh's bundled `/var/ossec/framework/python/bin/python3`; emits a JSON `PYTHON_VERSION_ERROR` and exits 1 if neither is found
+- Resolves script directory with `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"`
+- Execs Python entry point: `exec "${PYTHON}" "$SCRIPT_DIR/{vendor}.py" "$@"`
 - Uses `#!/usr/bin/env bash` and `set -euo pipefail`
 - Never contains credentials (those go in `.secrets`)
 - The `exec` replaces the shell process — no parent lingers

@@ -199,15 +199,28 @@ set -euo pipefail
 # Configuration — environment variables only
 export VN_SETTING="value"
 
+# Resolve Python interpreter — system python3 first, Wazuh's bundled python3 as fallback
+if command -v python3 &>/dev/null; then
+    PYTHON="$(command -v python3)"
+elif [[ -x /var/ossec/framework/python/bin/python3 ]]; then
+    PYTHON="/var/ossec/framework/python/bin/python3"
+else
+    echo '{"integration":"vendorname","type":"error","vendorname":{"source":"orchestrator","error_code":"PYTHON_VERSION_ERROR","error_message":"python3 not found in PATH or /var/ossec/framework/python/bin"}}' >&1
+    exit 1
+fi
+
 # Execute — replace shell with Python
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-exec "$SCRIPT_DIR/vendorname.py" "$@"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${PYTHON}" "$SCRIPT_DIR/vendorname.py" "$@"
 ```
 
 - Always use `#!/usr/bin/env bash` (not `#!/bin/bash`)
 - Always `set -euo pipefail`
+- Always resolve the Python interpreter explicitly — do not rely on the `.py` shebang, which fails silently on hosts without `python3` in PATH. Fall back to Wazuh's bundled interpreter at `/var/ossec/framework/python/bin/python3`.
+- On resolution failure, emit a structured JSON error to stdout so Wazuh's decoder still parses it, then exit 1.
 - Always `exec` (no background processes, no lingering shell)
 - Always forward `"$@"` for CLI arguments
+- Use `${BASH_SOURCE[0]}` instead of `$0` to resolve paths correctly when the script is sourced or symlinked
 - Never put credentials in `run.sh` — they go in `.secrets`
 
 ---

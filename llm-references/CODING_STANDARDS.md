@@ -124,10 +124,11 @@ def http_with_retry(request_fn, max_wait=60):
 
 1. `#!/usr/bin/env bash`
 2. `set -euo pipefail`
-3. `exec "$SCRIPT_DIR/{vendor}.py" "$@"` — replace shell, forward args
-4. `SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"` — resolve absolute path
-5. No credentials in run.sh — only in .secrets
-6. All config via `export VAR="value"`
+3. Resolve Python explicitly — prefer `command -v python3`, fall back to `/var/ossec/framework/python/bin/python3`; on failure emit a JSON `PYTHON_VERSION_ERROR` to stdout and `exit 1`
+4. `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"` — resolve absolute path (use `${BASH_SOURCE[0]}`, not `$0`)
+5. `exec "${PYTHON}" "$SCRIPT_DIR/{vendor}.py" "$@"` — replace shell, forward args
+6. No credentials in run.sh — only in .secrets
+7. All config via `export VAR="value"`
 
 ## Decoder rules
 

@@ -71,8 +71,10 @@ Step-by-step checklist for building a complete integration. Follow in order.
 - [ ] `#!/usr/bin/env bash`
 - [ ] `set -euo pipefail`
 - [ ] Export config env vars (base URL, paths, debug level)
-- [ ] `SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"`
-- [ ] `exec "$SCRIPT_DIR/{vendor}.py" "$@"`
+- [ ] Resolve Python interpreter — `command -v python3`, fall back to `/var/ossec/framework/python/bin/python3`
+- [ ] On resolution failure: emit JSON `PYTHON_VERSION_ERROR` to stdout and `exit 1`
+- [ ] `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"`
+- [ ] `exec "${PYTHON}" "$SCRIPT_DIR/{vendor}.py" "$@"`
 - [ ] No credentials in this file
 - [ ] Make executable: `chmod +x run.sh`
 

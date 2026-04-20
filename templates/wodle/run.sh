@@ -28,8 +28,20 @@ export {VENDOR_UPPER}_DEBUG="0"
 # export {VENDOR_UPPER}_PAGE_LIMIT="100"
 # export {VENDOR_UPPER}_MODE="balanced"
 
+# ── Python interpreter resolution ──
+# Prefer python3 in standard locations. Wazuh bundles its own Python under
+# /var/ossec/framework/python — fall back to that if system python3 is absent.
+if command -v python3 &>/dev/null; then
+    PYTHON="$(command -v python3)"
+elif [[ -x /var/ossec/framework/python/bin/python3 ]]; then
+    PYTHON="/var/ossec/framework/python/bin/python3"
+else
+    echo '{"integration":"{VENDOR_LOWER}","type":"error","{VENDOR_LOWER}":{"source":"orchestrator","error_code":"PYTHON_VERSION_ERROR","error_message":"python3 not found in PATH or /var/ossec/framework/python/bin"}}' >&1
+    exit 1
+fi
+
 # ── Execute ──
 # Replace shell with Python — no lingering parent process.
 # "$@" forwards any CLI arguments from ossec.conf or manual testing.
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-exec "$SCRIPT_DIR/{VENDOR_LOWER}.py" "$@"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${PYTHON}" "$SCRIPT_DIR/{VENDOR_LOWER}.py" "$@"

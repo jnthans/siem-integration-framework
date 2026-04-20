@@ -165,13 +165,25 @@ export VN_STATE_FILE="/var/ossec/wodles/vendorname/state.json"
 export VN_SECRETS_FILE="/var/ossec/wodles/vendorname/.secrets"
 export VN_DEBUG="0"
 
+# ── Python interpreter resolution ──
+if command -v python3 &>/dev/null; then
+    PYTHON="$(command -v python3)"
+elif [[ -x /var/ossec/framework/python/bin/python3 ]]; then
+    PYTHON="/var/ossec/framework/python/bin/python3"
+else
+    echo '{"integration":"vendorname","type":"error","vendorname":{"source":"orchestrator","error_code":"PYTHON_VERSION_ERROR","error_message":"python3 not found in PATH or /var/ossec/framework/python/bin"}}' >&1
+    exit 1
+fi
+
 # ── Execute ──
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-exec "$SCRIPT_DIR/vendorname.py" "$@"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "${PYTHON}" "$SCRIPT_DIR/vendorname.py" "$@"
 ```
 
 Key points:
 - `set -euo pipefail` — fail fast on errors
+- Explicit Python resolution — do not trust the `.py` shebang; Wazuh hosts may lack `python3` in PATH but always ship the bundled interpreter at `/var/ossec/framework/python/bin/python3`
+- Structured JSON error on resolution failure — keeps the Wazuh decoder pipeline happy even when the wodle can't start
 - `exec` — replaces the shell process with Python (no lingering parent)
 - `"$@"` — forwards CLI arguments from ossec.conf
 - All config is environment variables — no hardcoded paths in Python
