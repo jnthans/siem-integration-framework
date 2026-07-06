@@ -5,6 +5,8 @@ sections:
         url: /architecture/overview.html
       - title: Data flow
         url: /architecture/data-flow.html
+      - title: Ingestion models
+        url: /architecture/ingestion-models.html
       - title: Design principles
         url: /architecture/design-principles.html
 
@@ -27,6 +29,8 @@ sections:
         url: /guides/ai-prompting.html
       - title: Adapting to other SIEMs
         url: /guides/adapting-to-other-siems.html
+      - title: Push ingestion
+        url: /guides/push-ingestion.html
       - title: Security checklist
         url: /guides/security-checklist.html
 
@@ -45,6 +49,8 @@ order:
     title: Overview
   - url: /architecture/data-flow.html
     title: Data flow
+  - url: /architecture/ingestion-models.html
+    title: Ingestion models
   - url: /architecture/design-principles.html
     title: Design principles
   - url: /process/planning.html
@@ -61,6 +67,8 @@ order:
     title: AI-assisted building
   - url: /guides/adapting-to-other-siems.html
     title: Adapting to other SIEMs
+  - url: /guides/push-ingestion.html
+    title: Push ingestion
   - url: /guides/security-checklist.html
     title: Security checklist
   - url: /reference/repo-structure.html

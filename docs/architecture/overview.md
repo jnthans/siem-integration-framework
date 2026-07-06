@@ -2,6 +2,8 @@
 
 Every integration built with this framework follows the same four-layer architecture. The layers are identical across integrations — only the vendor-specific API logic changes.
 
+This page describes the **pull model** (scheduled wodle pollers) — the default. For sources that push events instead of exposing a pollable API, the framework provides a second ingestion model: a long-running HEC-compatible receiver. See [Ingestion models](ingestion-models.md) for the comparison and when to use each.
+
 ---
 
 ## The four layers

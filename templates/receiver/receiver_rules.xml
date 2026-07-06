@@ -1,0 +1,104 @@
+<!--
+  HEC receiver — Wazuh health and error rules.
+
+  Rule ID range: {RULE_BASE}00–{RULE_BASE}99 (reserve your own 100-ID block)
+
+  These rules cover the receiver's OWN events (integration=hec_receiver):
+  lifecycle, auth failures, malformed batches, spool problems. Following
+  the framework's block pattern, health/error rules live in xx90–xx99.
+
+  Each SENDER source gets its own rule file with its own reserved ID
+  block, exactly like a wodle integration — see the commented example at
+  the bottom.
+
+  Install: copy to /var/ossec/etc/rules/
+
+  CUSTOMIZE: Replace {RULE_BASE} with your starting rule ID prefix.
+-->
+
+<group name="hec_receiver,">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       BASE RULE — matches all events emitted by the receiver itself.
+       Level 0 = no alert. Exists only as a parent for child rules.
+       ═══════════════════════════════════════════════════════════ -->
+
+  <rule id="{RULE_BASE}00" level="0">
+    <decoded_as>hec_spool</decoded_as>
+    <field name="integration">hec_receiver</field>
+    <description>HEC receiver event.</description>
+  </rule>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       HEALTH / ERROR RULES (xx90–xx99 block).
+       Elevated severity so receiver problems are noticed.
+       ═══════════════════════════════════════════════════════════ -->
+
+  <!-- Rejected authentication: bad or missing token. Bursts of these
+       behind an edge without pre-origin auth mean someone is probing. -->
+  <rule id="{RULE_BASE}90" level="8">
+    <if_sid>{RULE_BASE}00</if_sid>
+    <field name="hecr.event_type">auth_failure</field>
+    <description>HEC receiver: authentication failure ($(hecr.reason)) from $(hecr.client_ip).</description>
+    <group>hec_receiver,authentication_failure,</group>
+  </rule>
+
+  <!-- A sender delivered a batch the receiver could not parse. -->
+  <rule id="{RULE_BASE}91" level="6">
+    <if_sid>{RULE_BASE}00</if_sid>
+    <field name="hecr.event_type">malformed_batch</field>
+    <description>HEC receiver: malformed batch from source $(hecr.source): $(hecr.error).</description>
+    <group>hec_receiver,integration_error,</group>
+  </rule>
+
+  <!-- Spool write failed — accepted events may be at risk. Highest severity. -->
+  <rule id="{RULE_BASE}92" level="10">
+    <if_sid>{RULE_BASE}00</if_sid>
+    <field name="hecr.event_type">spool_error</field>
+    <description>HEC receiver: spool write error: $(hecr.error).</description>
+    <group>hec_receiver,integration_error,</group>
+  </rule>
+
+  <!-- Disk quota reached — receiver is rejecting batches with 503.
+       Senders are buffering; free disk or check that Wazuh is reading. -->
+  <rule id="{RULE_BASE}93" level="9">
+    <if_sid>{RULE_BASE}00</if_sid>
+    <field name="hecr.event_type">quota_exceeded</field>
+    <description>HEC receiver: spool quota exceeded ($(hecr.spool_bytes) of $(hecr.quota_bytes) bytes) — rejecting with 503.</description>
+    <group>hec_receiver,integration_error,</group>
+  </rule>
+
+  <!-- Receiver (re)started. Informational; also confirms the pipeline
+       end-to-end after deployment. -->
+  <rule id="{RULE_BASE}94" level="3">
+    <if_sid>{RULE_BASE}00</if_sid>
+    <field name="hecr.event_type">receiver_started</field>
+    <description>HEC receiver started on $(hecr.bind).</description>
+    <group>hec_receiver,integration_health,</group>
+  </rule>
+
+</group>
+
+<!--
+  EXAMPLE — rules for one sender source. Copy into that source's own rule
+  file with its own reserved ID block. The token map entry
+  <token>:examplevendor:exv makes the receiver emit
+  {"integration":"examplevendor","exv":{...}} for that sender.
+
+<group name="examplevendor,">
+
+  <rule id="{SOURCE_RULE_BASE}00" level="0">
+    <decoded_as>hec_spool</decoded_as>
+    <field name="integration">examplevendor</field>
+    <description>Example vendor event (via HEC receiver).</description>
+  </rule>
+
+  <rule id="{SOURCE_RULE_BASE}01" level="3">
+    <if_sid>{SOURCE_RULE_BASE}00</if_sid>
+    <field name="exv.event_type">signin</field>
+    <description>Example vendor: sign-in by $(exv.actor.email).</description>
+    <group>examplevendor,authentication,</group>
+  </rule>
+
+</group>
+-->

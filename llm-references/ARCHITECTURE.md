@@ -169,3 +169,75 @@ Level 8-10: Error rules (event_type = error)
 - xx01–xx49: Event type rules
 - xx50–xx79: Conditional/elevated rules
 - xx90–xx99: Error and health rules
+
+---
+
+## Push ingestion model (HEC receiver)
+
+Everything above describes the **pull model** (scheduled wodle poller +
+cursor state) — the default. The framework also supports a **push model**
+for sources that cannot be polled and only emit events (HEC senders,
+webhook forwarders). Templates live in `templates/receiver/`.
+
+### Architecture
+
+```
+Push source → edge (Cloudflare Tunnel / Tailscale: TLS, WAF, access policy)
+  → outbound-only tunnel → hec_receiver.py on 127.0.0.1:8088 (loopback ONLY)
+  → spool file (framework-format JSON lines, e.g. /var/ossec/logs/hec/spool.jsonl)
+  → Wazuh <localfile log_format="json"> tails the spool
+  → decoder (prematch, no program_name) → rules → OpenSearch
+```
+
+### Receiver contract (`hec_receiver.py` — concrete and runnable, no placeholders)
+
+- stdlib only; `ThreadingHTTPServer` bound to `127.0.0.1:8088` (configurable, keep loopback)
+- Endpoints: `POST /services/collector` and `/services/collector/event`;
+  `GET /services/collector/health` → `{"text":"HEC is healthy","code":17}` (no auth)
+- Auth: `Authorization: Splunk <token>` or `Bearer <token>`; multiple tokens, each
+  mapped to `source` + `namespace` (per-source revocation); tokens via the same
+  three-tier credential chain, key `HEC_TOKENS` = `token:source:namespace` triplets
+- HEC batches are CONCATENATED JSON objects, not an array — parse with a
+  `json.JSONDecoder().raw_decode()` loop, never `json.loads()` on the whole body
+- `Content-Encoding: gzip` supported with a decompression cap; body cap ~1 MB → 413
+- Transform per envelope: `{"integration": "<source>", "<ns>": {<event payload>,
+  "hec_host":..., "hec_source":..., "hec_sourcetype":..., "hec_time":...}}` —
+  HEC metadata is preserved under `hec_*` keys; success response `{"text":"Success","code":0}`
+- Spool: line-buffered append; size-based rotation (keep one `.1` generation);
+  disk quota → 503 `{"text":"Server is busy","code":9}` (sender backpressure)
+- Receiver health events (auth_failure, malformed_batch, spool_error,
+  quota_exceeded, receiver_started) are spooled under `integration=hec_receiver`,
+  namespace `hecr`; diagnostics to stderr via the same `log()` pattern
+
+### Decoder pattern (push)
+
+Spool lines arrive via localfile, not a wodle, so there is no program_name.
+Prematch on the stable line prefix (the receiver always writes `integration` first):
+
+```xml
+<decoder name="hec_spool">
+  <prematch>^{"integration":</prematch>
+</decoder>
+<decoder name="hec_spool_json">
+  <parent>hec_spool</parent>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>
+```
+
+One decoder covers all spool traffic; each source gets its own rule file whose
+base rule matches `<decoded_as>hec_spool</decoded_as>` + `<field name="integration">`.
+Receiver health/error rules occupy the xx90–xx99 block as usual.
+
+### Model differences that change design decisions
+
+- No cursor/state file — there is no position to track; the spool is the durability boundary
+- Dedup is the SENDER's job; the receiver accepts what arrives (retries after a
+  lost 200 produce duplicates)
+- Long-running systemd service (wazuh user, hardening directives, LoadCredential),
+  not a scheduled wodle
+- Classes are acceptable in the receiver (`BaseHTTPRequestHandler` requires one);
+  wodle code style otherwise applies (stdlib only, no print, log() to stderr)
+- `http.server` is acceptable only because the bind is loopback behind a hardened
+  tunnel edge; for high volume, use Vector/Fluent Bit native HEC sources instead
+  (zero-deps governs wodle code on the manager; the receiver is a separate
+  deployment component)

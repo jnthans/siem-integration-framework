@@ -79,3 +79,17 @@ Review every item before releasing an integration. This checklist is derived fro
 - [ ] Rules do not expose sensitive field values in alert descriptions (e.g., do not interpolate API keys or full session tokens)
 - [ ] Error rules fire at elevated severity to ensure integration failures are noticed
 - [ ] Rule IDs are in the reserved custom range (100000+) — no collisions with Wazuh built-in rules
+
+## Push ingestion (HEC receiver)
+
+Applies only when deploying the push model ([guide](push-ingestion.md)).
+
+- [ ] Receiver binds loopback only (`127.0.0.1`) — never a routable interface; TLS terminates at the tunnel edge
+- [ ] One token per sender source (per-source revocation) — no shared tokens across senders
+- [ ] Tokens are long random values (`openssl rand -hex 32`), loaded via the three-tier credential chain, never logged or spooled
+- [ ] Token rotation is scheduled; **mandatory** (not just recommended) when the edge has no pre-origin auth (e.g., Tailscale Funnel), where the HEC token is the only auth layer
+- [ ] Request size cap enforced (~1 MB body → 413) and gzip decompression is capped (gzip-bomb guard)
+- [ ] Spool disk quota enforced (503 backpressure) and rotation size set so quota ≥ 2× rotation threshold
+- [ ] Tunnel/edge enforcement configured: WAF path/method restriction, rate limiting, and Cloudflare Access (service token or mTLS) for public third-party senders — or tailnet ACLs for tailnet-only deployments
+- [ ] Auth-failure events alert at elevated severity; bursts are investigated (probing)
+- [ ] systemd unit runs as `wazuh` with the hardening directives from the template (no root, `ProtectSystem=strict`, write access limited to the spool directory)
