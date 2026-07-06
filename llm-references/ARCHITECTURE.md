@@ -65,10 +65,11 @@ def main():
   5. `get_secret(cred_name, env_var, secrets)` — three-tier credential chain
   6. `load_state(path)` — JSON file → dict (empty dict if missing)
   7. `save_state(path, state)` — atomic write via tempfile + os.replace
-  8. `http_get(url, headers, timeout=30)` — GET with error handling
-  9. `http_post(url, headers, body, timeout=30)` — POST with JSON body
-  10. `http_with_retry(request_fn, max_wait=60)` — 429 retry wrapper
-  11. Auth header helpers: `bearer_auth_headers()`, `basic_auth_headers()`, etc.
+  8. `HttpError(RuntimeError)` — exception with `.status` (int or None for network failures) and `.headers` (dict); raised by both HTTP functions
+  9. `http_get(url, headers, timeout=30)` — GET; raises `HttpError` on HTTP error status, `urllib.error.URLError`, or timeout (all normalized to the same message format); adds a default `{INTEGRATION_NAME}/1.0` User-Agent; caps response reads at 50 MB
+  10. `http_post(url, headers, body, timeout=30)` — POST with JSON body; same error handling, User-Agent, and response cap as `http_get`
+  11. `http_with_retry(request_fn, max_wait=60)` — one retry on 429 (honors `Retry-After` from `e.headers`, capped at `max_wait`, default 30s) and on 502/503/504 (5s wait); checks `e.status == 429`, never string-matches the message
+  12. Auth header helpers: `bearer_auth_headers()`, `basic_auth_headers()`, etc.
 
 ---
 

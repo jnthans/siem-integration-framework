@@ -88,7 +88,7 @@ Every integration supports these flags:
 
 - Python 3.8+ compatible
 - No type hints (keeps scripts simple, maintains compatibility)
-- No classes (use functions and module-level constants)
+- No classes (use functions and module-level constants) — the one exception is small exception subclasses like `HttpError(RuntimeError)`
 - f-strings for simple interpolation, `.format()` in `log()` for lazy evaluation
 - `snake_case` for functions/variables, `UPPER_SNAKE_CASE` for constants
 - Functions: 20-40 lines typical, 60 max

@@ -8,7 +8,7 @@ Machine-readable coding standards for LLM-assisted integration development.
 
 - Python 3.8+ compatibility
 - Standard library only — NEVER use third-party packages
-- Allowed imports: `json`, `sys`, `os`, `urllib.request`, `urllib.error`, `urllib.parse`, `datetime`, `argparse`, `tempfile`, `time`, `hashlib`, `hmac`, `base64`, `ssl`
+- Allowed imports: `json`, `sys`, `os`, `socket`, `urllib.request`, `urllib.error`, `urllib.parse`, `datetime`, `argparse`, `tempfile`, `time`, `hashlib`, `hmac`, `base64`, `ssl`
 - Forbidden: `requests`, `httpx`, `aiohttp`, `click`, `pydantic`, `dataclasses` (3.7+, but we prefer dicts)
 
 ## Naming
@@ -87,20 +87,41 @@ def get_secret(cred_name, env_var, secrets):
     raise RuntimeError("Credential '{}' not found".format(cred_name))
 ```
 
-### HTTP with 429 retry
+### HttpError — raised by all HTTP functions
+```python
+class HttpError(RuntimeError):
+    """HTTP failure with .status (int, or None for network errors) and .headers (dict)."""
+    def __init__(self, message, status=None, headers=None):
+        super().__init__(message)
+        self.status = status
+        self.headers = headers if headers is not None else {}
+```
+
+`http_get()`/`http_post()` catch `urllib.error.HTTPError`, `urllib.error.URLError`, and
+`socket.timeout` and raise `HttpError` with a normalized message. They also add a default
+`{INTEGRATION_NAME}/1.0` User-Agent header and cap response reads at 50 MB.
+
+### HTTP retry — 429 with Retry-After, plus 502/503/504
 ```python
 def http_with_retry(request_fn, max_wait=60):
     try:
         return request_fn()
-    except urllib.error.HTTPError as e:
-        if e.code == 429:
-            retry_after = int(e.headers.get("Retry-After", "30"))
-            wait = min(retry_after, max_wait)
-            log(1, "Rate limited. Waiting {}s", wait)
-            time.sleep(wait)
-            return request_fn()
-        raise
+    except HttpError as e:
+        if e.status == 429:
+            wait = _retry_after_seconds(e.headers, default=30, max_wait=max_wait)
+            log(1, "Rate limited (429). Waiting {}s before retry", wait)
+        elif e.status in (502, 503, 504):
+            wait = min(5, max_wait)
+            log(1, "Transient upstream error ({}). Waiting {}s before retry", e.status, wait)
+        else:
+            raise
+        time.sleep(wait)
+        return request_fn()  # one retry; a second failure propagates
 ```
+
+Check `e.status == 429` — never substring-match "429" in the message (it false-positives
+on URLs and response bodies containing that number). `Retry-After` comes from `e.headers`
+(case-insensitive lookup, delta-seconds form), capped at `max_wait`.
 
 ## Error handling rules
 

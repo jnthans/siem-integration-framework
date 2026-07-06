@@ -11,6 +11,7 @@ with your vendor-specific values.
 
 import json
 import os
+import socket
 import sys
 import tempfile
 import time
@@ -22,6 +23,7 @@ import urllib.request
 INTEGRATION_NAME = "{VENDOR_LOWER}"   # e.g., "onepassword", "proofpoint"
 NAMESPACE = "{NAMESPACE}"              # e.g., "op", "pp", "xdr"
 DEBUG_LEVEL = 0                        # overwritten by config at startup
+MAX_RESPONSE_BYTES = 50 * 1024 * 1024  # refuse to buffer responses beyond this
 
 
 # ── Logging ──
@@ -43,8 +45,23 @@ def log(level, msg, *args):
 def emit(event):
     """Write a single JSON event to stdout (one line). Wazuh reads this."""
     line = json.dumps(event, separators=(",", ":"))
-    sys.stdout.write(line + "\n")
-    sys.stdout.flush()
+    try:
+        sys.stdout.write(line + "\n")
+        sys.stdout.flush()
+    except BrokenPipeError:
+        # Wazuh closed the pipe (manager shutdown or wodle timeout kill).
+        # Nothing downstream will read further events — exit quietly
+        # instead of crashing with a traceback on every subsequent emit.
+        try:
+            sys.stderr.write("[{}] stdout pipe closed — exiting\n".format(INTEGRATION_NAME))
+            sys.stderr.flush()
+        except BrokenPipeError:
+            pass
+        # Point stdout at /dev/null so the interpreter's exit-time flush
+        # does not raise BrokenPipeError a second time.
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+        sys.exit(1)
 
 
 def emit_error(source, message, code=None):
@@ -76,6 +93,17 @@ def load_secrets_file(path):
     if not path or not os.path.isfile(path):
         log(2, "Secrets file not found: {}", path)
         return secrets
+
+    # Expected permissions: 640 (root:wazuh) or stricter. Group read is
+    # required for the wazuh user; anything looser leaks credentials.
+    mode = os.stat(path).st_mode & 0o777
+    if mode & 0o004 or mode & 0o022:
+        log(
+            0,
+            "WARNING: Secrets file {} has loose permissions ({:03o}) — "
+            "world-readable or group/world-writable. Run: chmod 640 {} && chown root:wazuh {}",
+            path, mode, path, path,
+        )
 
     with open(path, "r") as f:
         for line_num, line in enumerate(f, 1):
@@ -174,56 +202,144 @@ def save_state(path, state):
 
 # ── HTTP ──
 
+class HttpError(RuntimeError):
+    """HTTP request failure with status and headers preserved.
+
+    - status: integer HTTP status code, or None for network-level failures
+      (DNS, connection refused, timeout)
+    - headers: dict of response headers (empty for network-level failures)
+
+    Subclasses RuntimeError so existing `except RuntimeError` call sites
+    keep working.
+    """
+
+    def __init__(self, message, status=None, headers=None):
+        super().__init__(message)
+        self.status = status
+        self.headers = headers if headers is not None else {}
+
+
+def _with_default_headers(headers):
+    """Copy headers, adding the default User-Agent if the caller set none."""
+    merged = dict(headers) if headers else {}
+    if not any(key.lower() == "user-agent" for key in merged):
+        merged["User-Agent"] = "{}/1.0".format(INTEGRATION_NAME)
+    return merged
+
+
+def _read_body(resp, method, url):
+    """Read a response body with a size cap. Returns decoded text.
+
+    Raises HttpError if the body exceeds MAX_RESPONSE_BYTES — buffering an
+    unbounded response could exhaust memory on the SIEM host.
+    """
+    body = resp.read(MAX_RESPONSE_BYTES + 1)
+    if len(body) > MAX_RESPONSE_BYTES:
+        raise HttpError(
+            "HTTP {} {} response exceeded the {} byte limit".format(
+                method, url, MAX_RESPONSE_BYTES
+            ),
+            status=resp.status,
+            headers=dict(resp.headers),
+        )
+    return body.decode("utf-8")
+
+
 def http_get(url, headers, timeout=30):
-    """HTTP GET with error handling. Returns parsed JSON response."""
+    """HTTP GET with error handling. Returns parsed JSON response.
+
+    Raises HttpError on HTTP error status, network failure, or timeout.
+    """
     log(3, "GET {}", url)
-    req = urllib.request.Request(url, headers=headers, method="GET")
+    req = urllib.request.Request(url, headers=_with_default_headers(headers), method="GET")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            body = resp.read().decode("utf-8")
+            body = _read_body(resp, "GET", url)
             log(3, "Response: {} bytes", len(body))
             return json.loads(body)
     except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", errors="replace")
-        raise RuntimeError("HTTP GET {} returned {}: {}".format(url, e.code, body[:200]))
+        body = e.read(4096).decode("utf-8", errors="replace")
+        raise HttpError(
+            "HTTP GET {} returned {}: {}".format(url, e.code, body[:200]),
+            status=e.code,
+            headers=dict(e.headers),
+        )
+    except urllib.error.URLError as e:
+        raise HttpError("HTTP GET {} failed: {}".format(url, e.reason))
+    except socket.timeout:
+        raise HttpError("HTTP GET {} failed: timed out after {}s".format(url, timeout))
 
 
 def http_post(url, headers, body, timeout=30):
-    """HTTP POST with JSON body. Returns parsed JSON response."""
+    """HTTP POST with JSON body. Returns parsed JSON response.
+
+    Raises HttpError on HTTP error status, network failure, or timeout.
+    """
     log(3, "POST {}", url)
     data = json.dumps(body).encode("utf-8")
-    headers = dict(headers)  # copy to avoid mutating caller's dict
+    headers = _with_default_headers(headers)
     headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            resp_body = resp.read().decode("utf-8")
+            resp_body = _read_body(resp, "POST", url)
             log(3, "Response: {} bytes", len(resp_body))
             return json.loads(resp_body)
     except urllib.error.HTTPError as e:
-        resp_body = e.read().decode("utf-8", errors="replace")
-        raise RuntimeError("HTTP POST {} returned {}: {}".format(url, e.code, resp_body[:200]))
+        resp_body = e.read(4096).decode("utf-8", errors="replace")
+        raise HttpError(
+            "HTTP POST {} returned {}: {}".format(url, e.code, resp_body[:200]),
+            status=e.code,
+            headers=dict(e.headers),
+        )
+    except urllib.error.URLError as e:
+        raise HttpError("HTTP POST {} failed: {}".format(url, e.reason))
+    except socket.timeout:
+        raise HttpError("HTTP POST {} failed: timed out after {}s".format(url, timeout))
+
+
+def _retry_after_seconds(headers, default, max_wait):
+    """Extract a Retry-After delay (delta-seconds form) from response headers.
+
+    Returns `default` when the header is missing or not a plain integer
+    (the rare HTTP-date form is not parsed). Result is capped at max_wait.
+    """
+    value = None
+    for key in headers:
+        if key.lower() == "retry-after":
+            value = headers[key]
+            break
+    try:
+        seconds = int(value)
+    except (TypeError, ValueError):
+        seconds = default
+    return max(0, min(seconds, max_wait))
 
 
 def http_with_retry(request_fn, max_wait=60):
-    """Execute an HTTP function with automatic 429 retry.
+    """Execute an HTTP function with one automatic retry on transient failures.
 
-    Reads the Retry-After header and sleeps accordingly (capped at max_wait).
-    Retries once. If the retry also fails, the exception propagates.
+    Retries once on:
+      - 429 Too Many Requests — honors the Retry-After header when present,
+        capped at max_wait (default 30s when absent or unparseable)
+      - 502/503/504 gateway errors — waits 5 seconds (capped at max_wait)
+
+    Any other failure, or a failed retry, propagates to the caller.
 
     Usage:
         response = http_with_retry(lambda: http_get(url, headers))
     """
     try:
         return request_fn()
-    except RuntimeError as e:
-        error_msg = str(e)
-        if "429" not in error_msg:
+    except HttpError as e:
+        if e.status == 429:
+            wait = _retry_after_seconds(e.headers, default=30, max_wait=max_wait)
+            log(1, "Rate limited (429). Waiting {}s before retry", wait)
+        elif e.status in (502, 503, 504):
+            wait = min(5, max_wait)
+            log(1, "Transient upstream error ({}). Waiting {}s before retry", e.status, wait)
+        else:
             raise
-        log(1, "Rate limited (429). Checking retry delay...")
-        # Try to extract retry-after from the error or use default
-        wait = min(30, max_wait)  # default if header not parseable
-        log(1, "Waiting {} seconds before retry", wait)
         time.sleep(wait)
         return request_fn()
 

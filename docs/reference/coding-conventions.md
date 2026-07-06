@@ -63,46 +63,62 @@ except Exception:
 
 ## HTTP patterns
 
+### Error type
+All HTTP failures raise `HttpError`, which preserves the response status and headers
+for the retry layer. It subclasses `RuntimeError` so broad `except RuntimeError`
+handlers keep working:
+
+```python
+class HttpError(RuntimeError):
+    """HTTP failure with .status (int, or None for network errors) and .headers (dict)."""
+    def __init__(self, message, status=None, headers=None):
+        super().__init__(message)
+        self.status = status
+        self.headers = headers if headers is not None else {}
+```
+
 ### Request construction
 ```python
 def http_get(url, headers, timeout=30):
-    req = urllib.request.Request(url, headers=headers, method="GET")
+    req = urllib.request.Request(url, headers=_with_default_headers(headers), method="GET")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            return json.loads(_read_body(resp, "GET", url))  # capped at 50 MB
     except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"HTTP {e.code}: {body[:200]}")
+        body = e.read(4096).decode("utf-8", errors="replace")
+        raise HttpError(f"HTTP GET {url} returned {e.code}: {body[:200]}",
+                        status=e.code, headers=dict(e.headers))
+    except urllib.error.URLError as e:
+        raise HttpError(f"HTTP GET {url} failed: {e.reason}")
+    except socket.timeout:
+        raise HttpError(f"HTTP GET {url} failed: timed out after {timeout}s")
 ```
 
-### POST with JSON body
-```python
-def http_post(url, headers, body, timeout=30):
-    data = json.dumps(body).encode("utf-8")
-    headers["Content-Type"] = "application/json"
-    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        body_text = e.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"HTTP {e.code}: {body_text[:200]}")
-```
+`_with_default_headers()` adds a `{INTEGRATION_NAME}/1.0` User-Agent when the caller
+sets none. `_read_body()` caps response reads at 50 MB and raises `HttpError` beyond it.
+`http_post()` follows the same shape with a JSON body and `Content-Type` header.
 
 ### Rate limit retry
 ```python
-def http_with_retry(request_fn, *args, max_wait=60):
+def http_with_retry(request_fn, max_wait=60):
     try:
-        return request_fn(*args)
-    except urllib.error.HTTPError as e:
-        if e.code == 429:
-            retry_after = int(e.headers.get("Retry-After", "30"))
-            wait = min(retry_after, max_wait)
-            log(1, "Rate limited. Waiting {} seconds", wait)
-            time.sleep(wait)
-            return request_fn(*args)  # one retry
-        raise
+        return request_fn()
+    except HttpError as e:
+        if e.status == 429:
+            wait = _retry_after_seconds(e.headers, default=30, max_wait=max_wait)
+            log(1, "Rate limited (429). Waiting {}s before retry", wait)
+        elif e.status in (502, 503, 504):
+            wait = min(5, max_wait)
+            log(1, "Transient upstream error ({}). Waiting {}s before retry", e.status, wait)
+        else:
+            raise
+        time.sleep(wait)
+        return request_fn()  # one retry
 ```
+
+Match on `e.status`, never on the message text — substring checks like `"429" in str(e)`
+false-positive on URLs and response bodies. The `Retry-After` value comes from
+`e.headers` and is capped at `max_wait`.
 
 ---
 

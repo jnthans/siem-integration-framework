@@ -60,33 +60,57 @@ Package as a Splunk app (`.spl` or `.tar.gz`) following Splunk's app directory s
 ## Microsoft Sentinel
 
 ### Output method
-Sentinel does not read from stdout. Replace `emit()` with an HTTP POST to the Azure Monitor Data Collector API (or the newer Logs Ingestion API):
+Sentinel does not read from stdout. Replace `emit()` with an HTTP POST to the Azure Monitor **Logs Ingestion API** (DCR-based) — the supported ingestion path. You need three Azure resources:
+
+1. A **Data Collection Endpoint (DCE)** — provides the ingestion URL
+2. A **Data Collection Rule (DCR)** — defines the target custom table and any transformation; note its immutable ID
+3. A **Microsoft Entra app registration** granted the `Monitoring Metrics Publisher` role on the DCR — provides the bearer token
 
 ```python
-def emit_sentinel(event, workspace_id, shared_key, log_type):
-    body = json.dumps([event])
-    date = datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
-    signature = build_signature(workspace_id, shared_key, date, len(body), 'POST', 'application/json', '/api/logs')
-    
-    headers = {
-        'Authorization': f'SharedKey {workspace_id}:{signature}',
-        'Content-Type': 'application/json',
-        'Log-Type': log_type,
-        'x-ms-date': date
-    }
-    
+import json
+import urllib.parse
+import urllib.request
+from datetime import datetime, timezone
+
+def get_ingestion_token(tenant_id, client_id, client_secret):
+    data = urllib.parse.urlencode({
+        'grant_type': 'client_credentials',
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'scope': 'https://monitor.azure.com/.default',
+    }).encode()
     req = urllib.request.Request(
-        f'https://{workspace_id}.ods.opinsights.azure.com/api/logs?api-version=2016-04-01',
-        data=body.encode(), headers=headers
+        f'https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token',
+        data=data
     )
-    urllib.request.urlopen(req)
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read())['access_token']
+
+def emit_sentinel(events, token, dce_endpoint, dcr_immutable_id, stream_name):
+    """POST a batch of events. stream_name is e.g. 'Custom-VendorEvents_CL'."""
+    now = datetime.now(timezone.utc).isoformat()
+    body = json.dumps([dict(event, TimeGenerated=now) for event in events]).encode()
+    req = urllib.request.Request(
+        f'{dce_endpoint}/dataCollectionRules/{dcr_immutable_id}'
+        f'/streams/{stream_name}?api-version=2023-01-01',
+        data=body,
+        headers={
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json',
+        }
+    )
+    urllib.request.urlopen(req, timeout=30)
 ```
+
+Batch events into arrays (up to ~1 MB per request) rather than posting one at a time — the Logs Ingestion API is designed for batches.
+
+> **Legacy footnote**: the older HTTP Data Collector API (`SharedKey {workspace_id}:{signature}` against `https://{workspace_id}.ods.opinsights.azure.com/api/logs?api-version=2016-04-01`) still functions but is deprecated and receives no new capabilities — use it only for existing deployments that already depend on it. If you maintain such code, build the `x-ms-date` header with `datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')` — `datetime.utcnow()` is deprecated as of Python 3.12.
 
 ### Scheduling
 Use Azure Logic Apps, Azure Functions (timer trigger), or a VM with cron/systemd timer. The entry point runs the same — only the trigger mechanism changes.
 
 ### Parsing
-Sentinel ingests JSON natively via the Data Collector API. Fields appear in the custom log table (e.g., `VendorEvents_CL`). No decoder equivalent needed — but define a KQL parser function for convenience:
+Sentinel ingests JSON natively. With the Logs Ingestion API, the DCR's transformation maps incoming JSON fields to the custom table's columns (e.g., `VendorEvents_CL`). No decoder equivalent needed — but define a KQL parser function for convenience:
 ```kql
 let VendorParser = () {
     VendorEvents_CL
@@ -149,7 +173,7 @@ import socket
 
 def emit_qradar(event, qradar_host, port=514):
     msg = json.dumps(event, separators=(",", ":"))
-    sock = socket.socket(socket.AF_INET, socket.SOCK_UDP)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(f"<134>{msg}".encode(), (qradar_host, port))
     sock.close()
 ```

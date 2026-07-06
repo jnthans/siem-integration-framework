@@ -29,11 +29,15 @@ Step-by-step checklist for building a complete integration. Follow in order.
 - [ ] Implement `get_secret(cred_name, env_var, secrets)` → three-tier chain
 - [ ] Implement `load_state(path)` → JSON to dict, empty dict if missing
 - [ ] Implement `save_state(path, state)` → tempfile + os.replace (ATOMIC)
+- [ ] Implement `HttpError(RuntimeError)` with `.status` and `.headers`
 - [ ] Implement HTTP function(s): `http_get()`, `http_post()`, or `api_post()`
   - [ ] Includes timeout parameter (default 30s)
+  - [ ] Raises `HttpError` on HTTP error status, `URLError`, and timeout (normalized messages)
+  - [ ] Adds default `{INTEGRATION_NAME}/1.0` User-Agent when caller sets none
+  - [ ] Caps response reads at 50 MB with a clear error
   - [ ] Reads response body on error for diagnostic message
   - [ ] Truncates error body to 200 chars
-- [ ] Implement `http_with_retry()` → 429 handling with Retry-After
+- [ ] Implement `http_with_retry()` → checks `e.status == 429`, honors Retry-After capped at max_wait; one retry on 502/503/504
 - [ ] Implement auth header builder(s): `bearer_auth_headers()`, `basic_auth_headers()`, etc.
 - [ ] Verify: no `print()` anywhere
 - [ ] Verify: no external imports
