@@ -226,6 +226,132 @@ def load_config(args):
 
 ---
 
+## Example 4: Push ingestion (HEC receiver pattern)
+
+For sources that push instead of exposing a pollable API. There is no
+cursor and no wodle — a long-running receiver (templates/receiver/
+hec_receiver.py, concrete and runnable) accepts HEC batches and appends
+framework-format JSON lines to a spool file that Wazuh tails. Dedup is
+the sender's job.
+
+### Token map — per-source auth via the credential chain
+```python
+# HEC_TOKENS (systemd credential > .secrets > env) holds
+# comma-separated <token>:<source>:<namespace> triplets:
+#   f2a4...:firewall:fw,9c81...:m365:m365
+def parse_token_map(raw):
+    tokens = {}
+    for entry in raw.split(","):
+        token, source, namespace = (p.strip() for p in entry.strip().split(":"))
+        tokens[token] = {"source": source, "namespace": namespace}
+    return tokens
+# Revoke one sender: remove its triplet, restart the receiver.
+```
+
+### Batch parsing — HEC bodies are CONCATENATED JSON objects, not an array
+```python
+def parse_hec_batch(text):
+    # {"event":...}{"event":...}  →  json.loads() would fail; loop raw_decode()
+    decoder = json.JSONDecoder()
+    envelopes = []
+    idx, length = 0, len(text)
+    while idx < length:
+        while idx < length and text[idx] in " \t\r\n":
+            idx += 1
+        if idx >= length:
+            break
+        obj, idx = decoder.raw_decode(text, idx)
+        envelopes.append(obj)
+    return envelopes
+```
+
+### Envelope transform — HEC metadata preserved under namespaced hec_* keys
+```python
+def transform_envelope(envelope, source, namespace):
+    payload = envelope.get("event")
+    data = dict(payload) if isinstance(payload, dict) else {"message": payload}
+    for meta in ("host", "source", "sourcetype", "time", "fields"):
+        if meta in envelope:
+            data["hec_" + meta] = envelope[meta]
+    if "event_type" not in data:
+        data["event_type"] = envelope.get("sourcetype") or "hec_event"
+    return {"integration": source, namespace: data}
+```
+
+Input → spool line (token mapped to `firewall`/`fw`):
+```json
+{"event":{"action":"drop","src":"1.2.3.4"},"host":"fw01","sourcetype":"fw:traffic","time":1720000000}
+```
+```json
+{"integration":"firewall","fw":{"action":"drop","src":"1.2.3.4","hec_host":"fw01","hec_sourcetype":"fw:traffic","hec_time":1720000000,"event_type":"fw:traffic"}}
+```
+
+### Spool discipline — durability boundary with backpressure
+```python
+# Acknowledge (200 {"text":"Success","code":0}) ONLY after the spool write.
+# Rotate at HECR_SPOOL_MAX_BYTES (keep one .1 generation); above
+# HECR_SPOOL_QUOTA_BYTES answer 503 {"text":"Server is busy","code":9} —
+# well-behaved senders buffer and retry, nothing is dropped silently.
+# Receiver's own failures (auth_failure, malformed_batch, spool_error,
+# quota_exceeded) are spooled under integration=hec_receiver, ns "hecr".
+```
+
+### Decoder and per-source rules — prematch, no program_name
+```xml
+<!-- Spool lines arrive via <localfile log_format="json">; the receiver
+     always writes "integration" as the first key, so prematch on it. -->
+<decoder name="hec_spool">
+  <prematch>^{"integration":</prematch>
+</decoder>
+<decoder name="hec_spool_json">
+  <parent>hec_spool</parent>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>
+```
+
+```xml
+<!-- One rule file per source, own reserved ID block — wodle pattern,
+     but the base rule matches decoded_as hec_spool. -->
+<group name="firewall,">
+  <rule id="100850" level="0">
+    <decoded_as>hec_spool</decoded_as>
+    <field name="integration">firewall</field>
+    <description>Firewall event (via HEC receiver).</description>
+  </rule>
+  <rule id="100851" level="5">
+    <if_sid>100850</if_sid>
+    <field name="fw.action">drop</field>
+    <description>Firewall: dropped traffic from $(fw.src).</description>
+    <group>firewall,firewall_drop,</group>
+  </rule>
+</group>
+```
+
+### Sender test (through the edge)
+```sh
+curl https://hec.example.com/services/collector/health
+curl -X POST https://hec.example.com/services/collector/event \
+     -H "Authorization: Splunk <token>" \
+     -d '{"event":{"test":"hello"},"sourcetype":"smoke:test"}'
+tail -1 /var/ossec/logs/hec/spool.jsonl    # on the receiver host
+```
+
+### Push flow diagram
+```
+push sender ──► edge (Cloudflare Tunnel / Tailscale: TLS, access policy)
+                    └─► outbound-only tunnel ──► 127.0.0.1:8088 hec_receiver.py
+                                                     │  token → source + namespace
+                                                     │  envelope → framework JSON
+                                                     ▼
+                                    /var/ossec/logs/hec/spool.jsonl (rotate + quota)
+                                                     │
+                       ossec.conf <localfile log_format="json"> tails the spool
+                                                     │
+                              hec_spool decoder ──► per-source rules ──► dashboard
+```
+
+---
+
 ## Example decoder and rules (1Password pattern)
 
 ### Decoder
