@@ -1,0 +1,77 @@
+# HEC receiver — systemd unit.
+#
+# Install:
+#   cp hec_receiver.py /opt/hec-receiver/           (chown root:wazuh, chmod 750 dir / 640 file)
+#   cp hec_receiver.service /etc/systemd/system/
+#   install -d -o wazuh -g wazuh -m 750 /var/ossec/logs/hec
+#   systemctl daemon-reload && systemctl enable --now hec_receiver
+#
+# Tokens: this unit uses LoadCredential (tier 1 of the credential chain).
+# Put the HEC_TOKENS value (token:source:namespace triplets, see
+# .secrets.example) in /etc/hec-receiver/hec_tokens, chmod 600 root:root.
+# On TPM-equipped hosts, encrypt it at rest instead:
+#   systemd-creds encrypt --name=hec_tokens /etc/hec-receiver/hec_tokens /etc/hec-receiver/hec_tokens.cred
+# and switch to the LoadCredentialEncrypted line below.
+
+[Unit]
+Description=HEC-compatible push ingestion receiver (SIEM Integration Framework)
+After=network.target
+# The receiver is useful only while Wazuh tails its spool, but it can start
+# first — the spool buffers until the manager is up.
+
+[Service]
+Type=simple
+User=wazuh
+Group=wazuh
+# Wazuh's bundled interpreter also works: /var/ossec/framework/python/bin/python3
+ExecStart=/usr/bin/python3 /opt/hec-receiver/hec_receiver.py
+Restart=on-failure
+RestartSec=5
+
+# ── Configuration (defaults shown; uncomment to override) ──
+# Environment=HECR_BIND_ADDR=127.0.0.1
+# Environment=HECR_PORT=8088
+# Environment=HECR_SPOOL_FILE=/var/ossec/logs/hec/spool.jsonl
+# Environment=HECR_SPOOL_MAX_BYTES=52428800
+# Environment=HECR_SPOOL_QUOTA_BYTES=209715200
+# Environment=HECR_MAX_BODY_BYTES=1048576
+# Environment=HECR_DEBUG=0
+
+# ── Credentials (tier 1 — preferred over a .secrets file) ──
+LoadCredential=hec_tokens:/etc/hec-receiver/hec_tokens
+# LoadCredentialEncrypted=hec_tokens:/etc/hec-receiver/hec_tokens.cred
+
+# ── Hardening ──
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/ossec/logs/hec
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+UMask=0027
+# Loopback-only service: it never initiates or accepts non-local traffic.
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+# Diagnostics go to stderr (framework log() pattern) → journal.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

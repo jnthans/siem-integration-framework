@@ -1,0 +1,36 @@
+# Cloudflare Tunnel configuration for the HEC receiver.
+#
+# The tunnel is OUTBOUND-ONLY: cloudflared dials out to Cloudflare's edge,
+# so no inbound firewall rules or port forwards exist on this host. Push
+# senders reach https://hec.example.com; Cloudflare terminates TLS and
+# proxies to the loopback-bound receiver.
+#
+# Setup (once):
+#   cloudflared tunnel login
+#   cloudflared tunnel create hec-receiver
+#   cloudflared tunnel route dns hec-receiver hec.example.com
+#   cp cloudflared-config.example.yml /etc/cloudflared/config.yml   (edit UUID/hostname)
+#   cloudflared service install && systemctl enable --now cloudflared
+#
+# Then harden the edge in the Cloudflare dashboard — the tunnel alone does
+# NOT restrict who can reach the hostname (see docs/guides/push-ingestion.md):
+#   - WAF custom rule: block everything except
+#       POST /services/collector*  and  GET /services/collector/health
+#   - Rate limiting rule on /services/collector*
+#   - Cloudflare Access: service token (senders add CF-Access-Client-Id/
+#     -Secret headers) or mTLS, so unauthenticated requests never reach
+#     the receiver at all.
+
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: /etc/cloudflared/REPLACE_WITH_TUNNEL_UUID.json
+
+# Fail closed if the receiver is down rather than hanging senders.
+ingress:
+  - hostname: hec.example.com
+    service: http://127.0.0.1:8088
+    originRequest:
+      connectTimeout: 10s
+      # The receiver speaks plain HTTP on loopback only; TLS terminates
+      # at the Cloudflare edge.
+  # Catch-all: any other hostname routed at this tunnel gets a 404.
+  - service: http_status:404

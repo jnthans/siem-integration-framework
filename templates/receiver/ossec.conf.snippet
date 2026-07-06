@@ -1,0 +1,15 @@
+<!--
+  HEC receiver — Wazuh localfile stanza.
+
+  Add this block inside <ossec_config> in /var/ossec/etc/ossec.conf.
+  Wazuh tails the receiver's spool file and parses each line as JSON —
+  the push-side equivalent of the wodle's stdout capture.
+
+  The location must match HECR_SPOOL_FILE in hec_receiver.service.
+  Restart the manager after adding: systemctl restart wazuh-manager
+-->
+
+<localfile>
+  <log_format>json</log_format>
+  <location>/var/ossec/logs/hec/spool.jsonl</location>
+</localfile>

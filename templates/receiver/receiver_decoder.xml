@@ -1,0 +1,24 @@
+<!--
+  HEC receiver spool — Wazuh JSON decoder.
+
+  Spool lines arrive via <localfile log_format="json">, not via a wodle,
+  so there is no program_name to match. Instead the decoder prematches on
+  the line prefix: the receiver always writes "integration" as the first
+  key of every spool line (both sender data and its own health events),
+  so the prefix is stable.
+
+  One decoder covers ALL spool traffic — the receiver's own events
+  (integration=hec_receiver) and every sender source. Per-source rules
+  chain from their own base rules on the integration field value.
+
+  Install: copy to /var/ossec/etc/decoders/
+-->
+
+<decoder name="hec_spool">
+  <prematch>^{"integration":</prematch>
+</decoder>
+
+<decoder name="hec_spool_json">
+  <parent>hec_spool</parent>
+  <plugin_decoder>JSON_Decoder</plugin_decoder>
+</decoder>

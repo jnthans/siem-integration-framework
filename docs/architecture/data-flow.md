@@ -49,7 +49,7 @@ Dashboard visualizations query data.{namespace}.*
 The domain module constructs and executes the API request. Key behaviors:
 
 - **Pagination**: The module handles vendor-specific pagination (cursor-based, offset-based, or time-window chunking). Each page is processed before requesting the next.
-- **Rate limiting**: HTTP 429 responses trigger a sleep-and-retry cycle. The `Retry-After` header is respected when present, capped at a configurable maximum (default 60 seconds).
+- **Rate limiting**: HTTP 429 responses trigger a sleep-and-retry cycle. The `Retry-After` header is respected when present, capped at a configurable maximum (default 60 seconds). Transient gateway errors (502/503/504) get one short-delay retry.
 - **Timeouts**: Configurable connect and read timeouts prevent indefinite hangs.
 - **Error isolation**: A failed request emits a structured error event and returns. It never raises an exception that could block other modules.
 

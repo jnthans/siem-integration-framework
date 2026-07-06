@@ -2,6 +2,11 @@
 
 Step-by-step checklist for building a complete integration. Follow in order.
 
+This checklist covers the PULL model (scheduled wodle) — the default.
+First confirm the model: if the source cannot be polled and only pushes
+events (HEC sender, webhook forwarder), skip to the push checklist at the
+bottom instead of scaffolding wodle files.
+
 ---
 
 ## Phase 1: Planning (do this before writing code)
@@ -29,11 +34,15 @@ Step-by-step checklist for building a complete integration. Follow in order.
 - [ ] Implement `get_secret(cred_name, env_var, secrets)` → three-tier chain
 - [ ] Implement `load_state(path)` → JSON to dict, empty dict if missing
 - [ ] Implement `save_state(path, state)` → tempfile + os.replace (ATOMIC)
+- [ ] Implement `HttpError(RuntimeError)` with `.status` and `.headers`
 - [ ] Implement HTTP function(s): `http_get()`, `http_post()`, or `api_post()`
   - [ ] Includes timeout parameter (default 30s)
+  - [ ] Raises `HttpError` on HTTP error status, `URLError`, and timeout (normalized messages)
+  - [ ] Adds default `{INTEGRATION_NAME}/1.0` User-Agent when caller sets none
+  - [ ] Caps response reads at 50 MB with a clear error
   - [ ] Reads response body on error for diagnostic message
   - [ ] Truncates error body to 200 chars
-- [ ] Implement `http_with_retry()` → 429 handling with Retry-After
+- [ ] Implement `http_with_retry()` → checks `e.status == 429`, honors Retry-After capped at max_wait; one retry on 502/503/504
 - [ ] Implement auth header builder(s): `bearer_auth_headers()`, `basic_auth_headers()`, etc.
 - [ ] Verify: no `print()` anywhere
 - [ ] Verify: no external imports
@@ -131,3 +140,38 @@ Step-by-step checklist for building a complete integration. Follow in order.
 - [ ] `artifacts/guides/rules-reference.md` — every rule ID with description
 - [ ] `artifacts/guides/troubleshooting.md` — symptom → cause → fix table
 - [ ] `.gitignore` excludes `.secrets`, `state.json`, `__pycache__/`
+
+---
+
+## Push model (HEC receiver) — setup checklist
+
+Use when the source pushes events instead of exposing a pollable API.
+Start from `templates/receiver/` — the receiver is concrete/runnable; the
+per-sender work is the token map, rules, and edge, not new Python.
+
+### Plan
+- [ ] Confirm push is required (no pollable API, or hard latency requirement) — pull is the default
+- [ ] Reserve a rule ID block for the receiver's health rules, and one block per sender source
+- [ ] Choose source name + namespace prefix (2-4 chars) per sender
+- [ ] Confirm sender behavior: retries on 503 (backpressure), dedup/idempotency is sender-side
+
+### Deploy the receiver
+- [ ] Install `hec_receiver.py` (e.g. `/opt/hec-receiver/`, root:wazuh) — do not modify per vendor
+- [ ] Generate one token per sender (`openssl rand -hex 32`); build `HEC_TOKENS` as `token:source:namespace` triplets
+- [ ] Provide `HEC_TOKENS` via the credential chain (systemd `LoadCredential` preferred; else `.secrets` chmod 640 root:wazuh)
+- [ ] Create spool directory (`install -d -o wazuh -g wazuh -m 750 /var/ossec/logs/hec`)
+- [ ] Install `hec_receiver.service` (wazuh user, hardening directives), `systemctl enable --now`
+- [ ] Verify loopback bind only (`HECR_BIND_ADDR=127.0.0.1`); size caps and spool quota sized (quota ≥ 2× rotation)
+
+### Wire up Wazuh
+- [ ] Copy `receiver_decoder.xml` to `/var/ossec/etc/decoders/` (prematch `^{"integration":` — no program_name on the localfile path)
+- [ ] Copy `receiver_rules.xml` with `{RULE_BASE}` replaced; add a rule file per sender source (base rule: `decoded_as hec_spool` + `integration` field)
+- [ ] Add the `<localfile log_format="json">` block (location = `HECR_SPOOL_FILE`); restart the manager
+- [ ] Confirm the `receiver_started` event produces an alert (pipeline works end-to-end)
+
+### Edge
+- [ ] Pick the edge from the decision matrix (docs/guides/push-ingestion.md): Tailscale serve (tailnet-only), Cloudflare Tunnel (public default), Tailscale Funnel (homelab/low-volume)
+- [ ] Validate tailnet-only first: POST test event from another node → confirm spool line → confirm alert — before any public exposure
+- [ ] Cloudflare: WAF path/method restriction, rate limiting, Access service token or mTLS
+- [ ] Funnel (no pre-origin auth): token strength + scheduled rotation are MANDATORY; alert on auth_failure bursts
+- [ ] Run the push section of docs/guides/security-checklist.md before going live

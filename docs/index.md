@@ -11,6 +11,7 @@ This repo captures what I learned building three production Wazuh wodle integrat
 ### Architecture
 - [Overview](architecture/overview.md) — The integration architecture and its components
 - [Data flow](architecture/data-flow.md) — How events move from vendor API to SIEM dashboard
+- [Ingestion models](architecture/ingestion-models.md) — Pull (scheduled wodle) vs. push (HEC receiver), and when to use each
 - [Design principles](architecture/design-principles.md) — The production lessons behind every decision
 
 ### Build process
@@ -23,6 +24,7 @@ This repo captures what I learned building three production Wazuh wodle integrat
 ### Guides
 - [AI-assisted building](guides/ai-prompting.md) — How to use LLMs effectively throughout the process
 - [Adapting to other SIEMs](guides/adapting-to-other-siems.md) — Splunk, Sentinel, Elastic, QRadar
+- [Push ingestion](guides/push-ingestion.md) — HEC receiver behind Cloudflare Tunnel or Tailscale
 - [Security checklist](guides/security-checklist.md) — Pre-release security review
 
 ### Reference

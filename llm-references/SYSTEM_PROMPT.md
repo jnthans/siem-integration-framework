@@ -75,6 +75,32 @@ Every integration supports these flags:
 - `--lookback` / `-l` — hours to look back
 - `--debug` / `-d` — verbosity (0-3, stderr only)
 
+## Choosing the ingestion model: pull vs push
+
+Before building, decide which of the two ingestion models fits the source:
+
+- **Pull (wodle poller)** — the DEFAULT. Use whenever the vendor exposes a
+  queryable API with a continuation mechanism (cursor, timestamp
+  checkpoint, offset). Everything in this prompt describes pull unless
+  stated otherwise.
+- **Push (HEC receiver)** — use ONLY when the source cannot be polled and
+  pushes events itself (HEC senders, webhook forwarders, appliances that
+  emit at delivery time), or when sub-polling-interval latency is a hard
+  requirement. If both are possible, prefer pull — the cursor gives
+  exactly-once semantics; in push, dedup is the sender's problem.
+
+For push, do NOT scaffold wodle files. Start from `templates/receiver/`
+(the receiver is concrete/runnable) and follow the push section of
+ARCHITECTURE.md: per-source token in the `HEC_TOKENS` map
+(`token:source:namespace`), spool file tailed by
+`<localfile log_format="json">`, prematch decoder (`^{"integration":` —
+no program_name), per-source rules chaining from a base rule on the
+`integration` field, and an edge layer (Cloudflare Tunnel or Tailscale)
+in front of the loopback-bound receiver. Push-specific rule deviations:
+the receiver may use classes (`BaseHTTPRequestHandler` requires it) and
+events go to the spool file instead of stdout — the stdout/stderr rule
+applies to wodle code.
+
 ## When the user provides vendor API documentation
 
 1. Identify the auth method (bearer, basic, HMAC, OAuth)
@@ -88,7 +114,7 @@ Every integration supports these flags:
 
 - Python 3.8+ compatible
 - No type hints (keeps scripts simple, maintains compatibility)
-- No classes (use functions and module-level constants)
+- No classes (use functions and module-level constants) — the one exception is small exception subclasses like `HttpError(RuntimeError)`
 - f-strings for simple interpolation, `.format()` in `log()` for lazy evaluation
 - `snake_case` for functions/variables, `UPPER_SNAKE_CASE` for constants
 - Functions: 20-40 lines typical, 60 max
